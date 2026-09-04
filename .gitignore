@@ -1,0 +1,12 @@
+# s&box/editor-generated state
+/.sbox/
+
+# .NET build outputs
+/Code/obj/
+/Code/bin/
+**/obj/
+**/bin/
+
+# Local build/editor output
+/.vs/
+/Exports/
