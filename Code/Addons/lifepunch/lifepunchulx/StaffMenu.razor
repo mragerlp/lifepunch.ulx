@@ -195,7 +195,7 @@
 						<span class="c-desc">Description</span>
 					</div>
 
-					<div class="lp-ui-scroll-region audit-scroll" @ref="_auditScroll">
+					<div class="lp-ui-scroll-region audit-scroll lp-ui-measured-scroll" @ref="_auditScroll">
 						@foreach ( var entry in entries.Take( auditShown ) )
 						{
 							<div class="audit-row">
@@ -435,60 +435,9 @@
 				</div>
 
 				<div class="settings-cols">
-					@* WAVE3 FIX 3 -- Appearance is the PRIMARY customization workspace: FIRST in the wider primary
-					   column and the card that grows into the column's slack; Network Management sits beneath it
-					   at content height. System Diagnostics keeps its own column (seven rows, no row added: the
-					   column's height budget at frozen XL holds seven at comfortable spacing and nothing more without
-					   a pane scroll, which is barred). Player & Staff Management stays full-width beneath both. *@
-					<div class="settings-col settings-col-primary">
-						<div class="settings-group settings-appearance">
-							<div class="settings-label">Appearance</div>
-							<div class="settings-hint">Sets resting action-card icons. Status colors stay fixed.</div>
-
-							<div class="accent-palette">
-								@if ( AccentProperty is not null )
-								{
-									<div class="accent-picker-inline">
-										<ColorPickerControl Property=@AccentProperty/>
-									</div>
-								}
-
-								<div class="accent-palette-summary">
-									<div class="accent-state-row">
-										<div class="accent-preview" style="background-color: @AccentDraftHex()"></div>
-										<div class="accent-state-copy">
-											<span class="accent-state-label">Selected</span>
-											<span class="accent-state-value">@AccentDraftLabel()</span>
-										</div>
-									</div>
-
-									<div class="accent-state-row">
-										<div class="accent-preview accent-preview-applied" style="background-color: @AppliedAccentHex()"></div>
-										<div class="accent-state-copy">
-											<span class="accent-state-label">Applied</span>
-											<span class="accent-state-value">@AppliedAccentLabel()</span>
-										</div>
-									</div>
-
-									<div class="accent-actions">
-										<button type="button" class="settings-btn accent-apply @( _accentDirty ? "" : "control-disabled accent-action-disabled" )"
-										        tooltip="@( _accentDirty ? "Apply the selected color to action-card icons" : "Selected and applied colors already match" )"
-										        onclick="@ApplyAccent">
-											<i class="material-icons">check</i> Apply accent
-										</button>
-										<button type="button" class="settings-btn accent-cancel @( _accentDirty ? "" : "control-disabled accent-action-disabled" )"
-										        tooltip="@( _accentDirty ? "Discard the selected color" : "Nothing to discard" )"
-										        onclick="@CancelAccentDraft">
-											<i class="material-icons">close</i> Cancel
-										</button>
-										<button type="button" class="settings-btn accent-reset" tooltip="Restore the default blue card accent" onclick="@ResetAccent">
-											<i class="material-icons">restart_alt</i> Reset
-										</button>
-									</div>
-								</div>
-							</div>
-						</div>
-
+					@* Network and Appearance share the former left two columns; Diagnostics and
+					   Player & Staff Management keep their existing right-column width and position. *@
+					<div class="settings-col settings-col-network">
 						<div class="settings-group settings-network">
 							<div class="settings-label">Network Management</div>
 							<div class="settings-hint">
@@ -537,6 +486,68 @@
 								</div>
 							}
 						</div>
+
+						<div class="settings-group settings-appearance">
+							<div class="settings-label">Appearance</div>
+							<div class="settings-hint">Sets resting action-card icons. Status colors stay fixed.</div>
+
+							<div class="accent-palette">
+								@if ( AccentProperty is not null )
+								{
+									<div class="accent-picker-inline">
+										<ColorPickerControl Property=@AccentProperty/>
+									</div>
+								}
+
+								<div class="accent-palette-summary">
+									<div class="accent-state-row">
+										<div class="accent-preview-slot">
+											<div class="accent-preview accent-preview-applied" style="background-color: @AppliedAccentHex()"></div>
+											<button type="button" class="copy-btn"
+											        tooltip="@( _copiedAppliedAccentHex == AppliedAccentCopyHex() ? $"Copied applied {AppliedAccentCopyHex()}" : $"Copy applied {AppliedAccentCopyHex()}" )"
+											        onclick="@CopyAppliedAccent">
+												<i class="material-icons">@( _copiedAppliedAccentHex == AppliedAccentCopyHex() ? "check" : "content_copy" )</i>
+											</button>
+										</div>
+										<div class="accent-state-copy">
+											<span class="accent-state-label">Applied</span>
+											<Label Tokenize=@(false) Text=@AppliedAccentLabel() class="accent-state-value" />
+										</div>
+									</div>
+
+									<div class="accent-state-row">
+										<div class="accent-preview-slot">
+											<div class="accent-preview" style="background-color: @AccentDraftHex()"></div>
+											<button type="button" class="copy-btn"
+											        tooltip="@( _copiedSelectedAccentHex == SelectedAccentCopyHex() ? $"Copied selected {SelectedAccentCopyHex()}" : $"Copy selected {SelectedAccentCopyHex()}" )"
+											        onclick="@CopySelectedAccent">
+												<i class="material-icons">@( _copiedSelectedAccentHex == SelectedAccentCopyHex() ? "check" : "content_copy" )</i>
+											</button>
+										</div>
+										<div class="accent-state-copy">
+											<span class="accent-state-label">Selected</span>
+											<Label Tokenize=@(false) Text=@AccentDraftLabel() class="accent-state-value" />
+										</div>
+									</div>
+
+									<div class="accent-actions">
+										<button type="button" class="settings-btn @( _accentDirty ? "accent-apply" : "accent-apply-inert control-disabled accent-action-disabled" )"
+										        tooltip="@( _accentDirty ? "Apply the selected color to action-card icons" : "Selected and applied colors already match" )"
+										        onclick="@ApplyAccent">
+											<i class="material-icons">check</i> Apply accent
+										</button>
+										<button type="button" class="settings-btn @( _accentDirty ? "accent-cancel" : "accent-cancel-inert control-disabled accent-action-disabled" )"
+										        tooltip="@( _accentDirty ? "Discard the selected color" : "Nothing to discard" )"
+										        onclick="@CancelAccentDraft">
+											<i class="material-icons">close</i> Cancel
+										</button>
+										<button type="button" class="settings-btn accent-reset" tooltip="Restore the default blue card accent" onclick="@ResetAccent">
+											<i class="material-icons">restart_alt</i> Reset
+										</button>
+									</div>
+								</div>
+							</div>
+						</div>
 					</div>
 
 					<div class="settings-col settings-col-diagnostics">
@@ -575,160 +586,32 @@
 								</div>
 							</div>
 						</div>
-					</div>
-				</div>
 
-				<div class="settings-group settings-management">
-					<div class="settings-management-copy">
-						<div class="settings-label">Player &amp; Staff Management</div>
-						<div class="settings-hint">Open the dedicated read-only player and staff workspace.</div>
+						<div class="settings-group settings-management">
+							<div class="settings-management-copy">
+								<div class="settings-label">Player &amp; Staff Management</div>
+								<div class="settings-hint">Open the dedicated read-only player and staff workspace.</div>
+							</div>
+							<button class="settings-btn settings-management-btn" tooltip="Open Player & Staff Management" onclick="@OpenPlayerMgmt">
+								<i class="material-icons">groups</i> Open
+							</button>
+						</div>
 					</div>
-					<button class="settings-btn settings-management-btn" tooltip="Open Player & Staff Management" onclick="@OpenPlayerMgmt">
-						<i class="material-icons">groups</i> Open
-					</button>
 				</div>
 			</div>
 		}
 		else if ( _activeTab == TabSanctions )
 		{
-			@* R6-9 DESTINATION. Built ENTIRELY from classes this sheet already ships: .audit (pane
-			   shell, overflow hidden), .settings-head (shared pane title), .lp-ui-scroll-region +
-			   .audit-scroll (the proven list-region pair from the Audit tab), .sanction-* rows and
-			   .section-empty. No new scss was needed, so this lane did not have to HOLD. A scroll
-			   belongs here under the doctrine: this is a LIST region, not a pane. Leaving is the
-			   tab strip, exactly as it is for Settings. *@
-			<div class="audit sanctions-section">
-				<div class="settings-head sanctions-head">
-					<i class="material-icons">gavel</i>
-					<span>@SanctionsHeading()</span>
-				</div>
-
-				@if ( _sanctionsSteamId == 0 )
-				{
-					<div class="section-empty">Open a player profile and choose "Open sanctions" to read their record here.</div>
-				}
-				else if ( !StaffMenuHost.CanViewSanctions( _sanctionsSteamId ) )
-				{
-					<div class="section-empty">You do not have permission to view sanctions.</div>
-				}
-				else
-				{
-					var fullSanctions = StaffMenuHost.GetSanctions( _sanctionsSteamId );
-					var sanctionState = StaffMenuHost.GetSanctionsState( _sanctionsSteamId );
-					<div class="lp-ui-scroll-region audit-scroll">
-						<div class="sanction-sub-head">Sanction history</div>
-						@* R8-H2 -- FIVE STATES USED TO COLLAPSE INTO ONE LINE. "No sanctions on record." was
-						   painted whenever GetSanctions came back empty, and it comes back empty for a CLEAN
-						   record AND for four other reasons: no system in this realm, no answer yet, an answer
-						   that belongs to a different subject, and a host that refused to disclose. The operator
-						   could not tell "nothing happened" from "I could not find out", which is an honesty
-						   defect, not a cosmetic one. The host senses the states (SanctionsReadState); this only
-						   paints them, and the branch is TOTAL over the enum so no state can fall through to a
-						   silent empty. The one thing that CANNOT be sensed is a request the host drops silently
-						   -- it is indistinguishable from a slow answer, so it stays under Loading rather than
-						   being dressed as a failure nobody observed. An honest unknown beats a false clean. *@
-						@if ( sanctionState == SanctionsReadState.Loading )
-						{
-							<div class="section-empty">Loading sanction history…</div>
-						}
-						else if ( sanctionState == SanctionsReadState.Unavailable )
-						{
-							<div class="section-empty">Sanction history is unavailable in this session. Use the Portal to inspect the authoritative record — this is not a claim that the record is clean.</div>
-						}
-						else if ( sanctionState == SanctionsReadState.Refused )
-						{
-							<div class="section-empty">The host declined to disclose this player's record. Nothing was read, and nothing here says the record is clean.</div>
-						}
-						else if ( sanctionState == SanctionsReadState.Unanswered )
-						{
-							<div class="section-empty">No answer has come back for this player, so their record is unknown — not empty. Reopen their profile to ask again.</div>
-						}
-						else if ( sanctionState == SanctionsReadState.CompletedEmpty )
-						{
-							<div class="section-empty">The authorized host read returned no sanctions for this player.</div>
-						}
-						else if ( sanctionState == SanctionsReadState.PermissionDenied )
-						{
-							<div class="section-empty">You do not have permission to view sanctions.</div>
-						}
-						else if ( sanctionState == SanctionsReadState.Failed )
-						{
-							<div class="section-empty">The sanction service did not return a record. The result is unknown; reopen this view to retry.</div>
-						}
-						else
-						{
-							@if ( sanctionState == SanctionsReadState.Filtered )
-							{
-								<div class="section-empty">Your permissions limit which sanction rows can appear. This is the visible subset, not a complete-record claim.</div>
-							}
-							@foreach ( var sanction in fullSanctions )
-							{
-								<div class="sanction-row @( sanction.IsActive ? "sanction-active" : "" )">
-									<span class="sanction-type sanction-@sanction.TypeClass">@sanction.Type</span>
-									<span class="sanction-reason">@sanction.Reason</span>
-									<span class="sanction-meta">@( $"{sanction.Duration} · {sanction.Created}" )</span>
-								</div>
-							}
-						}
-
-						@* R7-2 -- ARRIVED HERE FROM THE PROFILE. The principal ruled that sanctions and staff
-						   actions leave the data-rich profile for their own surface; this is that surface, and it
-						   already existed (R6-9), so nothing was invented. Both halves moved intact: the boot
-						   projection below and the reserved socket under it. The socket copy is VERBATIM from the
-						   profile -- it is an honest claim about a real seam (STAFF-07) and softening it on the way
-						   across would make the panel lie by omission. Every class here already ships in the sheet,
-						   so no scss was needed and this lane did not have to HOLD. *@
-						<div class="sanction-sub-head">Staff actions this boot</div>
-						@if ( !StaffMenuHost.CanViewAudit() )
-						{
-							<div class="section-empty">You do not have permission to view audit activity.</div>
-						}
-						else
-						{
-							<div class="sanction-sub-hint">Matched by SteamID inside each action's description -- the ring stores no target field, so this list is as good as the wording each act records.</div>
-							var staffActs = StaffMenuHost.GetAuditEntries( _sanctionsSteamId.ToString(), "", false,
-								StaffActionTaxonomy.SanctionActionNames, AuditPlayerScope.Target );
-							@if ( staffActs.Count == 0 )
-							{
-								@if ( StaffMenuHost.AuditFeedIsReadableHere )
-								{
-									<div class="section-empty">No sanctions or staff actions recorded against this player this boot.</div>
-								}
-								else
-								{
-									<div class="section-empty">@StaffMenuHost.AuditFeedUnavailableText</div>
-								}
-							}
-							else
-							{
-								@foreach ( var entry in staffActs.Take( 12 ) )
-								{
-									<div class="event-row">
-										<span class="event-when">@entry.When</span>
-										<span class="event-act"><span class="@ActionPillClass( entry.Action )">@PresentAuditText( entry.Action )</span></span>
-										<span class="event-what">@PresentAuditText( entry.Description )</span>
-									</div>
-								}
-								@* The Take(12) came across from the profile, where a card had to stay short. On a scrolling
-								   surface an undisclosed cap silently hides rows, so the overflow line below states the
-								   denominator instead of leaving the reader to assume twelve is all there is. Same shape the
-								   sanction summary used on the profile. *@
-								@if ( staffActs.Count > 12 )
-								{
-									<div class="section-empty">@( $"Showing the newest 12 of {staffActs.Count} this boot — the Audit tab reaches the rest." )</div>
-								}
-							}
-						}
-
-						<div class="sanction-sub-head">Lifetime staff actions</div>
-						<div class="sanction-reserved">
-							<i class="material-icons">plumbing</i>
-							<span class="sanction-reserved-title">No data source is wired yet</span>
-							<span class="sanction-reserved-hint">Staff actions are read from the host audit ring, which holds only this boot -- the portal read-back is unbound. This panel is a reserved socket for lifetime history; nothing here is simulated.</span>
-						</div>
-					</div>
-				}
-			</div>
+			@* ULX-FINAL-3 SANCTIONS CONSOLIDATION -- the hidden per-profile list that used to live here is
+			   retired. ONE renderer (StaffObserve in SanctionsOnly mode) serves every entry point; this mount is
+			   the profile route, seeded with the subject and offered a return path, and the child owns the
+			   subject and the host request. Per-subject CanViewSanctions still gates every read inside it; the
+			   full Observe hub keeps its stricter CanViewObserve mount below. *@
+			<StaffObserve SanctionsOnly="@true"
+			              SubjectSeedSteamId="@_sanctionsSteamId"
+			              SubjectSeedVersion="@_sanctionsSeedVersion"
+			              OnManagePlayer="@((long steamId) => OpenSanctionManagementFromObserve( steamId ))"
+			              OnReturnToProfile="@(() => ReturnToProfileFromSanctions())" />
 		}
 		else if ( _activeTab == TabPlayerMgmt && StaffObserveHost.CanViewObserve() )
 		{
@@ -736,7 +619,13 @@
 			   Superadmin+ (portal.audit.view AND rank order >= 10) sees the read-only
 			   Observe section at the existing Player and Staff Management entry; every
 			   other staff rank falls through to the untouched Coming Soon branch below. *@
-			<StaffObserve OnManagePlayer="@((long steamId) => OpenSanctionManagementFromObserve( steamId ))" />
+			@* Attribute set kept TOTAL against the SanctionsOnly mount above: if the engine ever reuses the sibling
+			   panel positionally, the hub must not inherit the seed mode, seed or return path. *@
+			<StaffObserve SanctionsOnly="@false"
+			              SubjectSeedSteamId="@( 0L )"
+			              SubjectSeedVersion="@( 0 )"
+			              OnReturnToProfile="@((Action?)null)"
+			              OnManagePlayer="@((long steamId) => OpenSanctionManagementFromObserve( steamId ))" />
 		}
 		else if ( _activeTab == TabPlayerMgmt )
 		{
@@ -959,60 +848,71 @@
 
 							<div class="profile-body">
 
-								@* 16b -- IDENTITY *@
-								@* The three info sections sit SIDE BY SIDE. Stacking them left a third of the card's
-								   width empty and pushed Status down until the buttons clipped it. Pairs group
-								   tightly inside each column; the distribution happens across the width. *@
+								@* 16b -- IDENTITY / ECONOMY / STATUS: one geometry for three cards (polish spec, PROFILE-CARDS).
+								   Each column is a head plus ONE bordered box; the box holds exactly FOUR fixed-height rows,
+								   so the four baselines line up across the row, and a fixed-height centred FOOTER LANE.
+								   The lane div is ALWAYS emitted -- only the control inside it is permission-gated -- so a
+								   hidden View inventory / View pocket leaves the geometry untouched. Category is gone;
+								   flags moved from the body into the Identity lane. Off-roster targets render all three
+								   columns with "—" values so the card never changes scale. *@
+								@{
+									var statusHealthStyle = detail.Found
+										? $"color: {StaffMenuHost.HealthColorHex( detail.Health, detail.MaxHealth )}"
+										: "";
+								}
 								<div class="profile-columns">
 									<div class="profile-col">
 										<div class="profile-section-head">Identity</div>
 										<div class="profile-section">
-											<div class="field steamid-field">
-												<span class="k">Steam ID</span>
-												<span class="v v-copy">
-												<button type="button" class="steamid-value @( steamIdCopied ? "copied-text" : "" )"
-												        tooltip="@( steamIdCopied ? "Copied!" : "Copy Steam ID" )"
-												        onclick="@(() => CopySteamId( profileSteamId ))">@( steamIdCopied ? "Copied!" : profileSteamId.ToString() )</button>
-													<button class="copy-btn"
+											<div class="profile-rows">
+												<div class="field steamid-field">
+													<span class="k">Steam ID</span>
+													<span class="v v-copy">
+													<button type="button" class="steamid-value @( steamIdCopied ? "copied-text" : "" )"
 													        tooltip="@( steamIdCopied ? "Copied!" : "Copy Steam ID" )"
-													        onclick="@(() => CopySteamId( profileSteamId ))">
-														<i class="material-icons">@( steamIdCopied ? "check" : "content_copy" )</i>
-													</button>
-												</span>
+													        onclick="@(() => CopySteamId( profileSteamId ))">@( steamIdCopied ? "Copied!" : profileSteamId.ToString() )</button>
+														<button class="copy-btn"
+														        tooltip="@( steamIdCopied ? "Copied!" : "Copy Steam ID" )"
+														        onclick="@(() => CopySteamId( profileSteamId ))">
+															<i class="material-icons">@( steamIdCopied ? "check" : "content_copy" )</i>
+														</button>
+													</span>
+												</div>
+												<div class="field">
+													<span class="k">Role</span>
+													<span class="v v-role @( detail.Found ? "" : "v-tone-zero" )">@detail.Role</span>
+												</div>
+												<div class="field">
+													<span class="k">Level</span>
+													<span class="v @( detail.Found ? "" : "v-tone-zero" )">@( detail.Found ? detail.Level.ToString() : "—" )</span>
+												</div>
+												<div class="field">
+													<span class="k">Time played</span>
+													<span class="v @( detail.Found ? "" : "v-tone-zero" )">@( detail.Found ? $"{detail.PlayTimeMinutes / 60}h" : "—" )</span>
+												</div>
 											</div>
-											<div class="field">
-												<span class="k">Role</span>
-												<span class="v v-role">@detail.Role</span>
-											</div>
-											<div class="field">
-												<span class="k">Level</span>
-												<span class="v">@( detail.Found ? detail.Level.ToString() : "—" )</span>
-											</div>
-											<div class="field">
-												<span class="k">Time played</span>
-												<span class="v">@( detail.Found ? $"{detail.PlayTimeMinutes / 60}h" : "—" )</span>
-											</div>
-
-											@* STATE FLAGS live in Identity, not Status. Every active flag remains individually named,
-											   but chips wrap inside one bounded field so the maximum seven flags cannot overflow the
-											   fixed profile card. Severity tone is the existing .flag-illegit,
-											   which marks a power held WITHOUT the permission that grants it. Gated on detail.Found:
+											@* STATE FLAGS lane. Every active flag stays individually named; chips wrap inside the
+											   bounded lane. Severity tone is the existing .flag-illegit. Gated on detail.Found:
 											   GetStateFlags returns empty BOTH for "no flags" and for "player not resolvable", and
-											   only the first of those is a claim we are entitled to print. *@
-											@if ( detail.Found )
-											{
-												var stateFlags = StaffMenuHost.GetStateFlags( profileSteamId );
-												@if ( stateFlags.Count == 0 )
+											   only the first is a claim we are entitled to print -- an unresolvable player reads "—". *@
+											<div class="profile-footer profile-footer-flags">
+												@if ( !detail.Found )
 												{
-													<div class="field">
-														<span class="k">Flags</span>
-														<span class="v v-tone-zero">None active</span>
-													</div>
+													<span class="k">Flags</span>
+													<span class="v v-tone-zero">—</span>
 												}
 												else
 												{
-													<div class="field flags-field">
+													var stateFlags = StaffMenuHost.GetStateFlags( profileSteamId );
+													@if ( stateFlags.Count == 0 )
+													{
 														<span class="k">Flags</span>
+														<span class="v v-tone-zero">None</span>
+													}
+													else
+													{
+														@* Chips are self-labelling, so the "Flags" word yields its width to them: at the expanded-sidebar
+														   column width the seven-flag maximum needs the whole lane to pack in two rows. *@
 														<span class="flags-list">
 															@foreach ( var flag in stateFlags )
 															{
@@ -1020,89 +920,78 @@
 																      tooltip="@( flag.Illegitimate ? "Active WITHOUT the permission that grants it" : "Permitted for this player" )">@flag.Label</span>
 															}
 														</span>
-													</div>
+													}
 												}
-											}
+											</div>
 										</div>
 									</div>
 
-									@if ( detail.Found )
-									{
-										<div class="profile-col">
-											<div class="profile-section-head">Econ</div>
-											<div class="profile-section">
+									<div class="profile-col">
+										<div class="profile-section-head">Economy</div>
+										<div class="profile-section">
+											<div class="profile-rows">
 												<div class="field">
 													<span class="k">Job</span>
-													<span class="v v-job" style="@( string.IsNullOrEmpty( detail.JobColorHex ) ? "" : $"color: {detail.JobColorHex}" )">@detail.Job</span>
-												</div>
-												@{
-													var jobCategory = StaffMenuHost.GetJobCategory( profileSteamId );
-												}
-												@if ( !string.IsNullOrEmpty( jobCategory ) )
-												{
-													<div class="field">
-														<span class="k">Category</span>
-													<span class="v">@jobCategory</span>
-												</div>
-											}
-											<div class="field">
-												<span class="k">Base salary</span>
-												<span class="v @( detail.BaseSalary > 0 ? "v-cash" : "v-tone-zero" )">$@( detail.BaseSalary.ToString( "N0", System.Globalization.CultureInfo.InvariantCulture ) )</span>
-											</div>
-											<div class="field">
-												<span class="k">Cash</span>
-													<span class="v @( detail.Wallet > 0 ? "v-cash" : "v-tone-zero" )">$@( detail.Wallet.ToString( "N0", System.Globalization.CultureInfo.InvariantCulture ) )</span>
+													<span class="v v-job @( detail.Found ? "" : "v-tone-zero" )" style="@( detail.Found && !string.IsNullOrEmpty( detail.JobColorHex ) ? $"color: {detail.JobColorHex}" : "" )">@( detail.Found ? detail.Job : "—" )</span>
 												</div>
 												<div class="field">
-												<span class="k">Bank</span>
-												<span class="v @( detail.Bank > 0 ? "v-cash" : "v-tone-zero" )">$@( detail.Bank.ToString( "N0", System.Globalization.CultureInfo.InvariantCulture ) )</span>
+													<span class="k">Base salary</span>
+													<span class="v @( detail.BaseSalary > 0 ? "v-cash" : "v-tone-zero" )">@( detail.Found ? "$" + detail.BaseSalary.ToString( "N0", System.Globalization.CultureInfo.InvariantCulture ) : "—" )</span>
+												</div>
+												<div class="field">
+													<span class="k">Cash</span>
+													<span class="v @( detail.Wallet > 0 ? "v-cash" : "v-tone-zero" )">@( detail.Found ? "$" + detail.Wallet.ToString( "N0", System.Globalization.CultureInfo.InvariantCulture ) : "—" )</span>
+												</div>
+												<div class="field">
+													<span class="k">Bank</span>
+													<span class="v @( detail.Bank > 0 ? "v-cash" : "v-tone-zero" )">@( detail.Found ? "$" + detail.Bank.ToString( "N0", System.Globalization.CultureInfo.InvariantCulture ) : "—" )</span>
+												</div>
 											</div>
-										@if ( StaffMenuHost.CanViewInventory( profileSteamId ) )
-										{
-											<div class="field">
-												<span class="k">Inventory</span>
-												<button type="button" class="profile-data-trigger profile-inventory-trigger"
-												        tooltip="Open read-only Portal inventory"
-												        onclick="@(() => ViewInventory( profileSteamId ))">
-													<i class="material-icons">inventory</i> View inventory
-												</button>
+											<div class="profile-footer">
+												@if ( detail.Found && StaffMenuHost.CanViewInventory( profileSteamId ) )
+												{
+													<button type="button" class="profile-data-trigger profile-inventory-trigger"
+													        tooltip="Open read-only Portal inventory"
+													        onclick="@(() => ViewInventory( profileSteamId ))">
+														<i class="material-icons">inventory</i> View inventory
+													</button>
+												}
 											</div>
-										}
 										</div>
-										</div>
+									</div>
 
-										<div class="profile-col">
-											<div class="profile-section-head">Status</div>
-											<div class="profile-section">
+									<div class="profile-col">
+										<div class="profile-section-head">Status</div>
+										<div class="profile-section">
+											<div class="profile-rows">
 												<div class="field">
 													<span class="k">Health</span>
-													<span class="v" style="@( $"color: {StaffMenuHost.HealthColorHex( detail.Health, detail.MaxHealth )}" )">@detail.Health / @detail.MaxHealth</span>
+													<span class="v @( detail.Found ? "" : "v-tone-zero" )" style="@statusHealthStyle">@( detail.Found ? $"{detail.Health} / {detail.MaxHealth}" : "—" )</span>
 												</div>
 												<div class="field">
 													<span class="k">Armor</span>
-													<span class="v @( detail.Armor > 0 ? "v-armor" : "v-tone-zero" )">@detail.Armor</span>
+													<span class="v @( detail.Armor > 0 ? "v-armor" : "v-tone-zero" )">@( detail.Found ? detail.Armor.ToString() : "—" )</span>
 												</div>
-											<div class="field">
-												<span class="k">Kills</span>
-												<span class="v">@detail.Kills</span>
+												<div class="field">
+													<span class="k">Kills</span>
+													<span class="v @( detail.Found ? "" : "v-tone-zero" )">@( detail.Found ? detail.Kills.ToString() : "—" )</span>
+												</div>
+												<div class="field">
+													<span class="k">Deaths</span>
+													<span class="v @( detail.Found ? "" : "v-tone-zero" )">@( detail.Found ? detail.Deaths.ToString() : "—" )</span>
+												</div>
 											</div>
-											<div class="field">
-												<span class="k">Deaths</span>
-												<span class="v">@detail.Deaths</span>
-											</div>
-												@if ( StaffMenuHost.CanViewPocket( profileSteamId ) )
+											<div class="profile-footer">
+												@if ( detail.Found && StaffMenuHost.CanViewPocket( profileSteamId ) )
 												{
-													<div class="field">
-														<span class="k">Pocket</span>
-												<button type="button" class="profile-data-trigger profile-pocket-trigger" tooltip="Open read-only pocket"
-														        onclick="@(() => ViewPocket( profileSteamId ))">
-															<i class="material-icons">inventory_2</i> View pocket
-														</button>
-													</div>
+													<button type="button" class="profile-data-trigger profile-pocket-trigger" tooltip="Open read-only pocket"
+													        onclick="@(() => ViewPocket( profileSteamId ))">
+														<i class="material-icons">inventory_2</i> View pocket
+													</button>
 												}
 											</div>
 										</div>
-									}
+									</div>
 								</div>
 
 								@* 16a -- the three sanctions staff reach for constantly. WAVE3 FIX 2(a): the row sits
@@ -1250,7 +1139,7 @@
 										}
 										else if ( inventoryState == StaffInventoryReadState.Populated )
 										{
-											<div class="inventory-modal-list lp-ui-scroll-region">
+											<div class="inventory-modal-list lp-ui-scroll-region lp-ui-measured-scroll">
 												@foreach ( var item in inventoryItems )
 												{
 													<div class="inventory-modal-row">
@@ -1353,6 +1242,21 @@
 							        onclick="@CancelArgs"><i class="material-icons">close</i></button>
 						</div>
 
+						@if ( moneyLocked )
+						{
+							@* FROZEN INSTANCE (spec GIVE-MONEY): while a grant is Pending, Unknown or Succeeded the inputs are
+							   replaced by a read-only receipt of the exact payload that was sent, so nothing can be edited
+							   beside a live or final result and no second grant can be entered from this instance. Rejected
+							   and Idle keep the editable rows below, so a rejected grant stays retryable. *@
+							<div class="grant-receipt">
+								<div class="field"><span class="k">Amount</span><span class="v grant-amount">$@_amount</span></div>
+								<div class="field"><span class="k">Destination</span><span class="v">@_destination</span></div>
+								<div class="field"><span class="k">Target</span><span class="v">@targetContext</span></div>
+								<div class="field"><span class="k">Reason</span><span class="v grant-receipt-reason">@_reason</span></div>
+							</div>
+						}
+						else
+						{
 						@foreach ( var arg in pending.Args )
 						{
 							// U1c: the marker must reflect SATISFACTION, not just the static requirement --
@@ -1364,7 +1268,17 @@
 							var argSatisfied = IsArgSatisfied( pending, arg );
 							var argMarker = arg.Required ? ( argSatisfied ? "" : ( argHasValue ? "Invalid" : "Required" ) ) : "Optional";
 							<div class="arg-row @( pending.Dispatch == StaffDispatchKind.GiveMoney && arg.Name == "reason" ? "arg-row-money-reason" : "" )">
-								<label>@arg.Label <span class="arg-required @( argMarker.Length == 0 ? "arg-required-off" : "" )">@argMarker</span></label>
+								@if ( pending.Dispatch == StaffDispatchKind.GiveMoney )
+								{
+									<div class="arg-money-label">
+										<span class="arg-money-label-text">@arg.Label</span>
+										<span class="arg-required @( argMarker.Length == 0 ? "arg-required-off" : "" )">@argMarker</span>
+									</div>
+								}
+								else
+								{
+									<label>@arg.Label <span class="arg-required @( argMarker.Length == 0 ? "arg-required-off" : "" )">@argMarker</span></label>
+								}
 
 								@if ( arg.Kind == StaffArgKind.Duration )
 								{
@@ -1413,29 +1327,43 @@
 										@if ( _jobDropdownOpen )
 										{
 											var jobOptions = FilteredJobOptions().ToList();
-											<div class="job-dropdown-list">
-												<TextEntry class="arg-input job-filter job-filter-sticky" Placeholder="Filter jobs" Value:bind="@_jobFilter"/>
-												<div class="lp-ui-scroll-region job-option-scroll" @ref="_jobScroll">
-													@foreach ( var job in jobOptions )
+											@* OPEN SHELL (spec SETJOB) -- a FIXED-height shell (filter + four-row viewport + cue lane) so
+											   typing never moves Confirm. The filter sits OUTSIDE the list box; the box hugs its rows up to
+											   four and scrolls only beyond four, with end clearance so the last row is never flush with the
+											   edge -- one filtered result is one row, not an oversized empty box. The cue lane is always
+											   present and its text appears only while there is more to scroll to (SenseJobScrollEnd). The
+											   scroll offset resets on every query change (SenseJobFilterChange) and is fresh on open. *@
+											<div class="job-dropdown-shell">
+												<TextEntry class="arg-input job-filter" Placeholder="Filter jobs" Value:bind="@_jobFilter"/>
+												<div class="job-dropdown-list">
+													@if ( jobOptions.Count == 0 )
 													{
-														<button type="button" class="job-option @( _job == job.Token ? "job-option-active" : "" )"
-														        onclick="@(() => SetJob( job.Token ))">
-															<span class="job-swatch" style="background-color: @job.ColorHex"></span>
-															<span>@job.Label</span>
-														</button>
+														<div class="job-empty">@( $"No job matches \"{_jobFilter?.Trim()}\"." )</div>
+													}
+													else
+													{
+														<div class="lp-ui-scroll-region job-option-scroll lp-ui-measured-scroll" @ref="_jobScroll">
+															@foreach ( var job in jobOptions )
+															{
+																<button type="button" class="job-option @( _job == job.Token ? "job-option-active" : "" )"
+																        onclick="@(() => SetJob( job.Token ))">
+																	<span class="job-swatch" style="background-color: @job.ColorHex"></span>
+																	<span>@job.Label</span>
+																</button>
+															}
+															@if ( jobOptions.Count > JobVisibleRows )
+															{
+																<div class="job-option-tail"></div>
+															}
+														</div>
 													}
 												</div>
-												@if ( jobOptions.Count > 4 )
-												{
-													@* WAVE3 FIX 4 -- the cue CLEARS at the true end of the list (SenseJobScrollEnd). The box
-													   stays (min-height in the sheet) so Confirm never shifts; only the hint inside it goes. *@
-													<div class="job-scroll-cue">
-														@if ( !_jobScrollAtEnd )
-														{
-															<i class="material-icons">unfold_more</i><span>Scroll for more jobs</span>
-														}
-													</div>
-												}
+												<div class="job-scroll-cue">
+													@if ( jobOptions.Count > JobVisibleRows && !_jobScrollAtEnd )
+													{
+														<i class="material-icons">unfold_more</i><span>@( $"Scroll for {jobOptions.Count - JobVisibleRows} more" )</span>
+													}
+												</div>
 											</div>
 										}
 									</div>
@@ -1452,13 +1380,55 @@
 								}
 							</div>
 						}
+						}
 
-						@if ( pending.Dispatch == StaffDispatchKind.GiveMoney && moneyState != StaffMoneyGrantState.Idle )
+						@if ( pending.Dispatch == StaffDispatchKind.GiveMoney )
 						{
-							<div class="grant-result @MoneyGrantResultClass( moneyState )">
-								<i class="material-icons">@MoneyGrantResultIcon( moneyState )</i>
-								<span>@StaffMenuHost.MoneyGrantMessage</span>
+							@* STATUS LANE (spec GIVE-MONEY) -- fixed height, always present on the grant form, so the
+							   validation text and the host result swap INSIDE it instead of pushing Destination, Reason and
+							   Confirm around while the operator types. *@
+							<div class="grant-status-lane">
+								@* Priority inside the lane: (1) the ARMED restatement -- the existing two-step confirm text,
+								   moved in here so arming swaps content instead of adding a block beneath the button during
+								   the double-click window; (2) a rejected grant being re-edited shows the field hint, not the
+								   stale rejection; (3) any host result; (4) the field hint; (5) ready. *@
+								@if ( _severeConfirm && requiredArgsComplete
+								      && moneyState is StaffMoneyGrantState.Idle or StaffMoneyGrantState.Rejected )
+								{
+									<div class="grant-confirm">
+										<span class="grant-confirm-line"><span class="grant-word-lead">Are you sure? Give</span><span class="grant-amount">$@_amount</span><span class="grant-word-mid">to</span><span class="grant-target">@targetContext</span><span class="grant-word-lead">, into their</span><span class="grant-amount">@_destination</span>?</span>
+										<span class="grant-confirm-sub">This is recorded in the host audit ring; portal delivery is asynchronous. It cannot be reversed from this console.</span>
+									</div>
+								}
+								else if ( moneyState == StaffMoneyGrantState.Rejected && !requiredArgsComplete )
+								{
+									<div class="arg-required-hint">Complete the required fields before confirming.</div>
+								}
+								else if ( moneyState != StaffMoneyGrantState.Idle )
+								{
+									<div class="grant-result @MoneyGrantResultClass( moneyState )">
+										<i class="material-icons">@MoneyGrantResultIcon( moneyState )</i>
+										<span>@StaffMenuHost.MoneyGrantMessage</span>
+									</div>
+								}
+								else if ( !requiredArgsComplete )
+								{
+									<div class="arg-required-hint">Complete the required fields before confirming.</div>
+								}
+								else
+								{
+									<div class="arg-required-hint">Fields complete. Confirm below; the grant is restated here before it sends.</div>
+								}
 							</div>
+							@if ( moneyState == StaffMoneyGrantState.Succeeded )
+							{
+								@* TERMINAL SUCCESS -- the receipt stands above; the one prominent exit is the existing close
+								   path (CloseMenu -> StaffMenuHost.RequestClose). The header X still returns to the grid;
+								   neither path can send a second grant from this instance. *@
+								<button class="confirm-btn grant-close-btn" tooltip="Close the console" onclick="@CloseMenu">
+									<i class="material-icons">check_circle</i> Close Menu
+								</button>
+							}
 							@if ( moneyState == StaffMoneyGrantState.Unknown )
 							{
 								<button class="confirm-btn grant-reconcile-btn" onclick="@StaffMenuHost.ReconcileMoneyGrant">
@@ -1482,34 +1452,28 @@
 								}
 							}
 						}
-
-						@if ( !requiredArgsComplete )
+						else if ( !requiredArgsComplete )
 						{
 							<div class="arg-required-hint">Complete the required fields before confirming.</div>
 						}
 
-						@if ( _severeConfirm && requiredArgsComplete )
+						@if ( _severeConfirm && requiredArgsComplete && pending.Dispatch != StaffDispatchKind.GiveMoney )
 						{
 							<div class="grant-confirm">
-								@* The restatement is per-action: a grant restates the amount and destination;
-								   every other Severe action restates what is about to run and on whom. Same
-								   .grant-confirm styling for both -- one seam, one look, no new SCSS. *@
-								@if ( pending.Dispatch == StaffDispatchKind.GiveMoney )
-								{
-									<span class="grant-confirm-line"><span class="grant-word-lead">Are you sure? Give</span><span class="grant-amount">$@_amount</span><span class="grant-word-mid">to</span><span class="grant-target">@targetContext</span><span class="grant-word-lead">, into their</span><span class="grant-amount">@_destination</span>?</span>
-									<span class="grant-confirm-sub">This is recorded in the host audit ring; portal delivery is asynchronous. It cannot be reversed from this console.</span>
-								}
-								else
-								{
-									<span class="grant-confirm-line"><span class="grant-word-lead">Are you sure? Run</span><span class="grant-amount">@pending.Label</span><span class="grant-word-mid">on</span><span class="grant-target">@targetContext</span>?</span>
-									<span class="grant-confirm-sub">@( UsesDoubleClickConfirm( pending ) ? "Double-click to confirm. This executes for real on the live host and cannot be undone from this console." : "Confirm once more to run this action on the live host." )</span>
-								}
+								@* The restatement is per-action: every Severe action (and Jail) restates what is about to run
+								   and on whom. The money grant's restatement lives INSIDE its status lane above, so it never
+								   adds height under the button; same .grant-confirm styling for both -- one seam, one look. *@
+								<span class="grant-confirm-line"><span class="grant-word-lead">Are you sure? Run</span><span class="grant-amount">@pending.Label</span><span class="grant-word-mid">on</span><span class="grant-target">@targetContext</span>?</span>
+								<span class="grant-confirm-sub">@( UsesDoubleClickConfirm( pending ) ? "Double-click to confirm. This executes for real on the live host and cannot be undone from this console." : "Confirm once more to run this action on the live host." )</span>
 							</div>
 						}
 
-						@if ( ( pending.Key != "kick" || requiredArgsComplete ) && moneyState != StaffMoneyGrantState.Succeeded )
+						@* No Confirm at all while a grant instance is frozen (Pending, Unknown, Succeeded): the lane carries
+						   the status, Unknown has its own reconcile/unlock controls, and a locked instance must not be able
+						   to arm a restatement. The host's DispatchGiveMoney state guard stays the authority underneath. *@
+						@if ( ( pending.Key != "kick" || requiredArgsComplete ) && !moneyLocked )
 						{
-							<button class="confirm-btn @( ConfirmButtonClasses( pending, formCanConfirm ) )"
+							<button class="@( ConfirmButtonClasses( pending, formCanConfirm ) )"
 							        tooltip="@ConfirmButtonTooltip( pending, formCanConfirm )"
 							        onclick="@(() => ConfirmArgs( selected ))">
 								<i class="material-icons">@( _severeConfirm ? "warning" : "check" )</i> @( _severeConfirm ? ( pending.Dispatch == StaffDispatchKind.GiveMoney ? "Yes, give the money" : $"Yes, {pending.Label}" ) : $"Confirm {pending.Label}" )
@@ -1773,15 +1737,17 @@
 
 	private string ConfirmButtonClasses( StaffAction action, bool requiredArgsComplete )
 	{
-		var classes = requiredArgsComplete ? "" : "control-disabled confirm-disabled-state";
-		// Jail gains the armed step, and Give Money keeps its stricter gesture,
-		// without either joining the danger-red visual classification.
-		if ( _severeConfirm && IsRedAction( action ) )
+		// The whole class list, BASE included. A disabled Confirm swaps its base class rather than
+		// stacking a modifier: with no .confirm-btn on the element, .confirm-btn:hover cannot paint it
+		// active whatever the cascade does (spec SETJOB). .confirm-btn-inert is the same geometry.
+		if ( !requiredArgsComplete )
 		{
-			classes += " confirm-btn-danger";
+			return "confirm-btn-inert control-disabled confirm-disabled-state";
 		}
 
-		return classes.Trim();
+		// Jail gains the armed step, and Give Money keeps its stricter gesture,
+		// without either joining the danger-red visual classification.
+		return _severeConfirm && IsRedAction( action ) ? "confirm-btn confirm-btn-danger" : "confirm-btn";
 	}
 
 	private string ConfirmButtonTooltip( StaffAction action, bool requiredArgsComplete )
@@ -1854,6 +1820,7 @@
 		// render tree (continuous "Fixing parent" + BuildRenderTree asserts = visible flicker).
 		LifePunchUiScrollPolicy.Apply( Panel );
 		SnapAuditScrollEnd();
+		SenseJobFilterChange();
 		SenseJobScrollEnd();
 		SyncWebsiteDraftFromHost();
 
@@ -1940,8 +1907,7 @@
 			var d = StaffMenuHost.GetPlayerDetail( sid );
 			_detailHash = HashCode.Combine(
 				d.Health, d.MaxHealth, d.Armor, d.Level, d.Wallet, d.Bank, d.BaseSalary,
-				HashCode.Combine( d.Kills, d.Deaths, d.Job, d.JobColorHex, d.Role, d.PlayTimeMinutes,
-					StaffMenuHost.GetJobCategory( sid ) ) );
+				HashCode.Combine( d.Kills, d.Deaths, d.Job, d.JobColorHex, d.Role, d.PlayTimeMinutes ) );
 
 			foreach ( var flag in StaffMenuHost.GetStateFlags( sid ) )
 			{
@@ -2647,10 +2613,8 @@
 			return;
 		}
 
-		// Match LifePunchUiScrollPolicy's manual-shell units; engine ScrollSize and
-		// HasScrollY are not authoritative for this Razor-owned flex stack.
-		var contentHeight = LifePunchScrollLayout.GetStackedContentHeight( _auditScroll );
-		var maxY = Math.Max( 0f, (contentHeight - viewportHeight) * _auditScroll.ScaleFromScreen );
+		// Share the opted-in measured limit with the clamp; keep the end snap in those same units.
+		var maxY = LifePunchUiScrollPolicy.GetMeasuredScrollMaxY( _auditScroll );
 		var remaining = maxY - _auditScroll.ScrollOffset.y;
 		if ( remaining > AuditEndSnapDistance || remaining <= 0.01f )
 		{
@@ -2660,18 +2624,42 @@
 		_auditScroll.ScrollOffset = new Vector2( 0f, maxY );
 	}
 
-	// WAVE3 FIX 4 -- end-of-list sensor for the Set Job cue. Same units and measure as the audit end-snap
-	// above: LifePunchScrollLayout.GetStackedContentHeight (already a dependency of this razor) against the
-	// scroller's own viewport. The scroller's last child IS the last option (no tail element), so the
-	// content is N rows of 30px against the 120px viewport and the reachable maximum is 30(N-4) -- the
-	// same clamp the manual scroll policy applies. "At end" therefore means the final option's bottom
-	// edge meets the viewport bottom within JobEndTolerance: four complete option rows in view, the
-	// alphabetically last job in the fourth slot, and the cue clears. Read-only: it never moves the
-	// offset. _jobScrollAtEnd reaches BuildHash so the cue repaints the frame the end is reached; a
-	// closed dropdown reads as "not at end" so the next open starts with the cue showing.
+	// End-of-list sensor for the Set Job cue. Share the core measured limit with the clamp and audit
+	// end snap. Short lists contain only their option rows; lists longer than four retain the 8px tail.
+	// For long lists, content = 30N + 8 against a viewport of min(content, 128); for
+	// N > 4 the reachable maximum is 30(N-4) (the tail and the viewport's extra 8px cancel) -- the same
+	// clamp the manual scroll policy applies. "At end" therefore means the final option's bottom edge
+	// sits 8px above the viewport bottom (the tail filling the gap) within JobEndTolerance: four complete
+	// option rows in view, the alphabetically last job in the fourth slot, and the cue clears. Read-only:
+	// it never moves the offset. _jobScrollAtEnd reaches BuildHash so the cue repaints the frame the end
+	// is reached; a closed dropdown reads as "not at end" so the next open starts with the cue showing.
 	private Panel _jobScroll;
 	private bool _jobScrollAtEnd;
 	private const float JobEndTolerance = 2f;
+
+	// Rows the Set Job viewport shows before it scrolls (sheet: 4 x 30px plus end clearance).
+	private const int JobVisibleRows = 4;
+
+	// SETJOB polish -- a stale scroll offset used to survive a query change, so the tail of an old
+	// filter could sit over the first rows of a new one. Sensed per frame against the last seen filter
+	// text (TextEntry binds the value directly); on a change the open scroller snaps to 0, and the
+	// manual clamp in LifePunchUiScrollPolicy keeps it inside the new content height from there.
+	private string _jobFilterSeen = "";
+
+	private void SenseJobFilterChange()
+	{
+		var current = _jobFilter ?? "";
+		if ( string.Equals( current, _jobFilterSeen, StringComparison.Ordinal ) )
+		{
+			return;
+		}
+
+		_jobFilterSeen = current;
+		if ( _jobDropdownOpen && _jobScroll.IsValid() )
+		{
+			_jobScroll.ScrollOffset = Vector2.Zero;
+		}
+	}
 
 	private void SenseJobScrollEnd()
 	{
@@ -2681,8 +2669,7 @@
 			var viewportHeight = _jobScroll.Box.Rect.Height;
 			if ( viewportHeight > 1f )
 			{
-				var contentHeight = LifePunchScrollLayout.GetStackedContentHeight( _jobScroll );
-				var maxY = Math.Max( 0f, (contentHeight - viewportHeight) * _jobScroll.ScaleFromScreen );
+				var maxY = LifePunchUiScrollPolicy.GetMeasuredScrollMaxY( _jobScroll );
 				atEnd = maxY <= JobEndTolerance || _jobScroll.ScrollOffset.y >= maxY - JobEndTolerance;
 			}
 		}
@@ -2941,12 +2928,40 @@
 		ResetPocketModal();
 		ResetInventoryModal();
 		_sanctionsSteamId = steamId;
-		// The host holds only ONE player's sanctions at a time -- GetSanctions returns empty
-		// unless CurrentPlayerId matches -- so ask for this subject before the view first reads it.
-		StaffMenuHost.RequestSanctions( steamId, forceRetry: true );
+		// ULX-FINAL-3: the mounted StaffObserve is the single subject AND request owner. This shell only
+		// seeds it (subject + a version bumped per open, so re-opening the same player re-seeds after a
+		// Change player inside the view) and remembers where to return to. No RequestSanctions here.
+		_sanctionsSeedVersion++;
+		_sanctionsReturnTab = _activeTab;
 		_activeTab = TabSanctions;
 		_showProfile = false;
 		_profileSteamId = null;
+		StateHasChanged();
+	}
+
+	// Seed version handed to the sanctions renderer; see OpenSanctionsForPlayer.
+	private int _sanctionsSeedVersion;
+
+	// The category tab the operator was on when they opened sanctions from a profile.
+	private string _sanctionsReturnTab = "";
+
+	/// <summary>Return to profile from the unified sanctions view: same subject, same category tab.</summary>
+	private void ReturnToProfileFromSanctions()
+	{
+		if ( MoneyGrantNavigationLocked() )
+		{
+			return;
+		}
+
+		_activeTab = StaffMenuActions.Categories.Contains( _sanctionsReturnTab )
+			? _sanctionsReturnTab
+			: StaffMenuActions.CategoryModeration;
+		if ( _sanctionsSteamId != 0 )
+		{
+			_profileSteamId = _sanctionsSteamId;
+			_showProfile = true;
+		}
+
 		StateHasChanged();
 	}
 
@@ -3085,20 +3100,6 @@
 	{
 		ResetInventoryModal();
 		StateHasChanged();
-	}
-
-	/// <summary>Title for the Sanctions surface: names the subject whenever it resolves.</summary>
-	private string SanctionsHeading()
-	{
-		if ( _sanctionsSteamId == 0 )
-		{
-			return "Sanctions and staff actions";
-		}
-
-		var who = StaffMenuHost.GetPlayerDetail( _sanctionsSteamId );
-		return who.Found && !string.IsNullOrWhiteSpace( who.Name )
-			? $"Sanctions and staff actions \u2014 {who.Name}"
-			: $"Sanctions and staff actions \u2014 SteamID {_sanctionsSteamId}";
 	}
 
 	/// <summary>Teleport to a named waypoint from the saved list.</summary>
@@ -3254,6 +3255,10 @@
 	private Color _lastObservedAccent = DefaultAccentColor;
 	private bool _normalizingAccent;
 	private bool _accentDirty;
+	private string _copiedAppliedAccentHex = "";
+	private string _copiedSelectedAccentHex = "";
+	private int _appliedAccentCopyGeneration;
+	private int _selectedAccentCopyGeneration;
 
 	private SerializedProperty? AccentProperty
 	{
@@ -3322,6 +3327,53 @@
 	private static string AppliedAccentLabel() => IsDefaultAccent( _appliedAccentColor )
 		? "Blue (default)"
 		: AppliedAccentHex();
+
+	private static string AppliedAccentCopyHex() => "#" + AppliedAccentHex().TrimStart( '#' );
+	private string SelectedAccentCopyHex() => "#" + AccentDraftHex().TrimStart( '#' );
+
+	private void CopyAppliedAccent()
+	{
+		var hex = AppliedAccentCopyHex();
+		Clipboard.SetText( hex );
+		_copiedAppliedAccentHex = hex;
+		var generation = ++_appliedAccentCopyGeneration;
+		StateHasChanged();
+		_ = RevertAppliedAccentCopy( generation );
+	}
+
+	private async System.Threading.Tasks.Task RevertAppliedAccentCopy( int generation )
+	{
+		await GameTask.DelayRealtimeSeconds( 1.8f );
+		if ( _appliedAccentCopyGeneration != generation )
+		{
+			return;
+		}
+
+		_copiedAppliedAccentHex = "";
+		StateHasChanged();
+	}
+
+	private void CopySelectedAccent()
+	{
+		var hex = SelectedAccentCopyHex();
+		Clipboard.SetText( hex );
+		_copiedSelectedAccentHex = hex;
+		var generation = ++_selectedAccentCopyGeneration;
+		StateHasChanged();
+		_ = RevertSelectedAccentCopy( generation );
+	}
+
+	private async System.Threading.Tasks.Task RevertSelectedAccentCopy( int generation )
+	{
+		await GameTask.DelayRealtimeSeconds( 1.8f );
+		if ( _selectedAccentCopyGeneration != generation )
+		{
+			return;
+		}
+
+		_copiedSelectedAccentHex = "";
+		StateHasChanged();
+	}
 
 	/// <summary>Commit the draft -- the ONLY path that repaints the console. No-op while nothing is dirty.</summary>
 	private void ApplyAccent()
@@ -3621,6 +3673,7 @@
 				// SanctionsAnsweredFor is the input that stops ANOTHER player's response from satisfying
 				// this subject's wait. Own nested group: HashCode.Combine tops out at 8 arguments.
 				HashCode.Combine( _waypointName, StaffMenuHost.WaypointVersion, _returnSteamId, _wpPendingDelete,
+					_sanctionsSeedVersion,
 					HashCode.Combine( StaffMenuHost.SanctionsVersion, _sanctionsSteamId,
 						StaffMenuHost.SanctionsClientRevision, StaffMenuHost.SanctionsAnsweredFor,
 						(int)StaffMenuHost.GetSanctionsState( _sanctionsSteamId ),
@@ -3632,6 +3685,7 @@
 			// repaint until something else happened to rebuild the panel. The draft holder colour is in
 			// here for the same reason PartyMenu hashes its picker: the preview swatch and the Apply gate
 			// follow the picker before anything is committed.
-			HashCode.Combine( _appliedAccentColor, _accentDirty, _accentHolder.Color, _moneyUnlockArmed ) );
+			HashCode.Combine( _appliedAccentColor, _accentDirty, _accentHolder.Color, _moneyUnlockArmed,
+				_copiedAppliedAccentHex, _copiedSelectedAccentHex ) );
 	}
 }

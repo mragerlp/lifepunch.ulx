@@ -605,22 +605,6 @@ $tone-gold: #a16207;
 		height: 26px;
 	}
 
-	// R8-B -- the SANCTIONS scroll region had no tail. It reuses .audit-scroll (razor:572), but
-	// unlike the Audit tab's .audit-scroll (razor:196), which emits a real audit-scroll-tail div
-	// at razor:240, the sanctions branch simply ends at .sanction-reserved. The rule above never
-	// fires there, so the last block sits against the frame -- the same defect family that
-	// produced the pill cloud clipping. Markup is another lane's wall, so the tail is carried by
-	// the region's own last child instead. That scoping is safe: .sanction-reserved is
-	// UNCONDITIONAL in that branch (it sits outside every conditional) and appears nowhere else
-	// in the razor, so it cannot leak into the Audit tab and hand that region a second tail.
-	// 26px is the unified height above, not a new number, and it is also .sanction-row's
-	// min-height -- so this clears exactly one sanction row, which is what "sized for a sanction
-	// row" means. IF THE RAZOR LANE LATER ADDS a real audit-scroll-tail div to the sanctions
-	// branch, DELETE THIS RULE: the two would stack to 52px.
-	.audit-scroll .sanction-reserved {
-		margin-bottom: 26px;
-	}
-
 	.roster-empty {
 		flex-shrink: 0;
 		padding: 12px 10px;
@@ -964,6 +948,17 @@ $tone-gold: #a16207;
 		color: $text;
 	}
 
+	.arg-money-label {
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+	}
+
+	.arg-money-label-text {
+		font-size: 13px;
+		color: $text;
+	}
+
 	.arg-required {
 		margin-left: 5px;
 		color: $blue-highlight;
@@ -984,8 +979,18 @@ $tone-gold: #a16207;
 		background-color: rgba($canvas, 0.26);
 	}
 
+	.arg-form-money > .arg-form-head {
+		flex-shrink: 0;
+	}
+
+	// Preserve field labels and chip height instead of compressing editable rows.
+	.arg-form-money > .arg-row {
+		flex-shrink: 0;
+	}
+
 	.arg-row-money-reason {
 		gap: 8px;
+		margin-top: 4px;
 	}
 
 	.arg-input-money-reason {
@@ -995,8 +1000,15 @@ $tone-gold: #a16207;
 		padding: 8px 9px;
 	}
 
-	.arg-form-money > .confirm-btn {
+	.arg-form-money > .confirm-btn,
+	.arg-form-money > .confirm-btn-inert {
 		margin-top: 8px;
+	}
+
+	.arg-form-money {
+		flex-shrink: 1;
+		min-height: 0;
+		overflow-y: scroll;
 	}
 
 	.chips {
@@ -1057,31 +1069,66 @@ $tone-gold: #a16207;
 		color: $muted;
 	}
 
-	// The filter remains outside the only scrolling region. Four fixed 30px rows fill the
-	// 120px viewport exactly, so neither the filter nor a fractional fifth row can disappear.
+	// SETJOB polish -- the open shell is ONE fixed box: filter 30 + gap 3 + list box (4 x 30px rows
+	// + 8px end clearance + 8px chrome = 136 at most) + gap 3 + cue lane 12 = 184px, i.e. +2px on
+	// HEAD's worst case (182 with the cue showing), so the pane-level fit R9-SETJOB trimmed for is kept:
+	// at frozen XL .main is ~540 and .actions offers 516; target card ~90 + arg-form ~395 (chrome 38,
+	// head 35, label 16 + 6 + header 35 + 5 + shell 184, hint 14, confirm 38, three 8px gaps) = ~485.
+	// Typing swaps rows inside the shell and can never move Confirm. The filter is OUTSIDE the list
+	// box; the list box hugs its rows (one result = one row) and scrolls only past four. overflow
+	// hidden so an over-measured child can never spill over the Confirm gap; nothing designed exceeds 184.
+	.job-dropdown-shell {
+		flex-direction: column;
+		flex-shrink: 0;
+		gap: 3px;
+		height: 184px;
+		min-height: 184px;
+		max-height: 184px;
+		overflow: hidden;
+	}
+
 	.job-dropdown-list {
 		flex-direction: column;
 		flex-shrink: 0;
-		gap: 4px;
-		padding: 4px;
+		padding: 3px;
 		border: 1px solid $border;
 		border-radius: 7px;
 		background-color: $shell;
 	}
 
+	// Pinned, not cascade-ordered: .arg-input says 35px and this must win by more than source order.
 	.job-filter {
 		flex-shrink: 0;
 		height: 30px;
+		min-height: 30px;
+		max-height: 30px;
 		margin-bottom: 0;
 	}
 
+	// max-height, not height: the viewport is four complete 30px rows plus 8px, and a shorter list closes
+	// the box around its rows instead of leaving an oversized empty one. At the END of a longer list the
+	// 8px is the tail (clearance under the last row); at offset 0 it shows the top 8px of row five, which
+	// is the scroll affordance itself. Still lp-ui-scroll-region, so the manual clamp measures it and the
+	// wheel reaches the pane when short.
 	.job-option-scroll {
 		flex-direction: column;
 		flex-shrink: 0;
-		height: 120px;
-		min-height: 120px;
-		max-height: 120px;
+		max-height: 128px;
 		overflow-y: scroll;
+	}
+
+	// End clearance inside the scroller: the last row never sits flush against the frame.
+	.job-option-tail {
+		flex-shrink: 0;
+		width: 100%;
+		height: 8px;
+	}
+
+	.job-empty {
+		flex-shrink: 0;
+		padding: 8px;
+		color: $muted;
+		font-size: 12px;
 	}
 
 	.job-option {
@@ -1109,11 +1156,16 @@ $tone-gold: #a16207;
 		color: $blue-highlight;
 	}
 
+	// Always emitted; fixed so the shell height holds whether or not the hint text is showing.
 	.job-scroll-cue {
+		flex-direction: row;
 		align-items: center;
 		justify-content: flex-end;
+		flex-shrink: 0;
 		gap: 4px;
-		min-height: 14px;
+		height: 12px;
+		min-height: 12px;
+		max-height: 12px;
 		color: $muted;
 		font-size: 11px;
 	}
@@ -1148,6 +1200,28 @@ $tone-gold: #a16207;
 	.confirm-btn {
 		align-self: stretch;
 		width: 100%;
+	}
+
+	// The DISABLED Confirm. Same box as .confirm-btn (min-height, padding, radius, weight, stretch) in
+	// the disabled palette, and NO hover arm: the razor swaps the base class to this one, so
+	// .confirm-btn:hover can never match a disabled Confirm and paint it active (spec SETJOB).
+	.confirm-btn-inert,
+	.confirm-btn-inert:hover {
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		align-self: stretch;
+		width: 100%;
+		gap: 7px;
+		min-height: 38px;
+		padding: 0 12px;
+		border: 1px solid rgba($muted, 0.20);
+		border-radius: 7px;
+		background-color: rgba($muted, 0.07);
+		color: $muted;
+		font-size: 13px;
+		font-weight: 700;
+		cursor: default;
 	}
 
 	.confirm-btn-secondary {
@@ -1367,10 +1441,6 @@ $tone-gold: #a16207;
 	.wp-head .material-icons {
 		font-size: 20px;
 		color: $blue;
-	}
-
-	.sanctions-head .material-icons {
-		color: $danger;
 	}
 
 	.profile-card {
@@ -1780,6 +1850,61 @@ $tone-gold: #a16207;
 		background-color: rgba($danger, 0.44);
 	}
 
+	// GIVE-MONEY polish -- the status lane is reserved BEFORE submission: validation text, the armed
+	// restatement (.grant-confirm, ~52px: 18 padding + 13px line + 3 gap + 11px sub) and the host result
+	// all swap inside it, so Destination, Reason and Confirm never move while typing or arming. 56px is
+	// the restatement's height plus slack, which makes the pre-submission form the same height HEAD's
+	// ARMED form was (~393 of the ~407 the pane offers under a three-line target card); min-height rather
+	// than height so a wrapped restatement or a two-line host message is never clipped.
+	.grant-status-lane {
+		flex-direction: column;
+		justify-content: center;
+		flex-shrink: 0;
+		min-height: 56px;
+	}
+
+	// Read-only receipt of the payload that was sent, shown in place of the inputs while a grant is
+	// Pending, Unknown or Succeeded (the frozen instance). Rows are the profile's .field family.
+	.grant-receipt {
+		flex-direction: column;
+		flex-shrink: 0;
+		gap: 2px;
+		padding: 6px 4px;
+		border: 1px solid $border;
+		border-radius: 7px;
+		background-color: rgba($canvas, 0.26);
+	}
+
+	.grant-receipt .field {
+		min-height: 26px;
+	}
+
+	.grant-receipt .v {
+		min-width: 0;
+	}
+
+	.grant-receipt .k {
+		flex-shrink: 0;
+		white-space: nowrap;
+	}
+
+	.grant-receipt-reason {
+		white-space: normal;
+		max-height: 52px;
+		overflow: scroll;
+	}
+
+	// The terminal exit after a successful grant: a .confirm-btn in the cash role, so it reads as the
+	// one primary action left on the form.
+	.grant-close-btn {
+		border-color: rgba($success, 0.55);
+		background-color: rgba($success, 0.18);
+	}
+
+	.grant-close-btn:hover {
+		background-color: rgba($success, 0.30);
+	}
+
 	// 16a -- three escalation cards in one row, destructive in role because every one of them
 	// takes something away. Sized by flex so all three always fit without wrapping.
 	.quick-sanctions {
@@ -1829,10 +1954,6 @@ $tone-gold: #a16207;
 	}
 
 	// 16e -- an illegitimate flag must be impossible to miss; a legitimate one must read calm.
-	.flags-field {
-		align-items: flex-start;
-	}
-
 	.flags-list {
 		flex-direction: row;
 		flex-wrap: wrap;
@@ -1908,15 +2029,82 @@ $tone-gold: #a16207;
 	// A stretched column is only half of it: the column grows but the bordered
 	// section inside keeps content height, so the three visible BOXES stayed
 	// unequal. Growing the section fills the stretched column.
+	// PROFILE-CARDS polish: the section is now two children -- .profile-rows (grows, spaces its FOUR
+	// fixed-height rows evenly, so the four baselines coincide across Identity / Economy / Status
+	// because every box is the same height and holds the same count) and .profile-footer (a fixed
+	// lane at the bottom, always present). Padding drops to the top only; the lane carries its own.
 	.profile-col .profile-section {
 		flex-grow: 1;
-		justify-content: space-evenly;
-		padding: 10px 6px;
+		justify-content: flex-start;
+		gap: 0;
+		padding: 6px 6px 0;
 	}
 
+	.profile-rows {
+		flex-direction: column;
+		flex: 1 1 0;
+		min-height: 0;
+		justify-content: space-evenly;
+		gap: 1px;
+		width: 100%;
+	}
+
+	// Fixed, not min: a long job name or a wrapped value must not make one column's baselines drift.
+	// Values ellipsize instead (the Audit tab shows the full text where it matters).
 	.profile-col .field {
+		height: 32px;
 		min-height: 32px;
+		max-height: 32px;
 		padding: 6px 10px;
+	}
+
+	.profile-rows .v {
+		min-width: 0;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	// The Steam ID cell is a row of controls, not text -- keep it visible; its digits already refuse to
+	// wrap (see .steamid-value below).
+	.profile-rows .v-copy {
+		overflow: visible;
+	}
+
+	// The footer LANE: equal, centred, fixed height in every column, emitted whether or not the
+	// control inside it is permitted. Width budget at the expanded sidebar, from this sheet's literals:
+	// column ~264 - section chrome 14 - lane padding 12 = ~238px of content. The seven-flag maximum
+	// (God mode / Cloaked / Incognito / Noclip / Frozen / Jailed / Gagged at 10px, 1px 5px padding, 4px
+	// gaps) packs as 188 + 204 in two rows only when the chips own the whole width -- so the razor emits
+	// the "Flags" word beside "None" / "—" only, never beside chips. 46px holds two 17px chip rows and
+	// the 4px gap with 8px to spare; View inventory / View pocket sit centred on one line.
+	.profile-footer {
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		gap: 8px;
+		width: 100%;
+		height: 46px;
+		min-height: 46px;
+		max-height: 46px;
+		padding: 0 6px;
+		border-top: 1px solid $border;
+		overflow: hidden;
+	}
+
+	.profile-footer .k {
+		flex-shrink: 0;
+	}
+
+	.profile-footer .flags-list {
+		flex: 0 1 auto;
+		justify-content: center;
+	}
+
+	.profile-footer .flag-chip {
+		padding: 1px 5px;
+		font-size: 10px;
 	}
 
 	.profile-col .k,
@@ -2063,68 +2251,10 @@ $tone-gold: #a16207;
 		font-size: 12px;
 	}
 
-	.sanction-meta {
-		flex-shrink: 0;
-		color: $muted;
-		font-size: 11px;
-	}
-
-	// -- Sanctions and staff actions section (G3a/G4) ---------------------------------
-	// Sub-panel heads INSIDE the one section: quieter than .profile-section-head (which
-	// stays the section's outer label), louder than row text. Standalone state classes are the
-	// project idiom because same-element class compounds are not a dependable s&box selector seam.
-	.sanction-sub-head {
-		flex-shrink: 0;
-		margin-top: 6px;
-		padding: 0 4px;
-		color: $muted;
-		font-size: 10px;
-		font-weight: 700;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-	}
-
-	// The Target-scope honesty line: a row lands here by description substring, not by a
-	// stored target field. The copy says so; this just keeps it quiet.
-	.sanction-sub-hint {
-		flex-shrink: 0;
-		padding: 0 4px 2px 4px;
-		color: $muted;
-		font-size: 10px;
-	}
-
-	// Reserved socket for LIFETIME staff-action history (portal read-back unbound,
-	// TECH_DEBT STAFF-07). Same recipe as .observe-reserved in StaffObserve.razor.scss,
-	// restated because that sheet is scoped to a different component -- its hexes are
-	// this sheet's own tokens ($surface / $border / $muted), so the two stay in step.
-	.sanction-reserved {
-		flex-direction: column;
-		align-items: center;
-		gap: 4px;
-		margin: 2px 4px 4px 4px;
-		padding: 16px 12px;
-		background-color: $surface;
-		border: 1px solid $border;
-		border-radius: 6px;
-		flex-shrink: 0;
-	}
-
-	.sanction-reserved > .material-icons {
-		font-size: 22px;
-		color: $muted;
-	}
-
-	.sanction-reserved-title {
-		color: $text;
-		font-size: 12px;
-		font-weight: 700;
-	}
-
-	.sanction-reserved-hint {
-		color: $muted;
-		font-size: 11px;
-		text-align: center;
-	}
+	// The per-profile sanctions list that .sanction-meta, .sanction-sub-head, .sanction-sub-hint and
+	// .sanction-reserved dressed was retired by the ULX-FINAL-3 consolidation; the one renderer lives in
+	// StaffObserve.razor with its own sheet. .sanction-row / -active / -type / -reason and the type
+	// tones above stay: the Observe table rows wear them.
 
 	// No rules between rows. The group sits in a slightly lighter rounded panel
 	// and spacing alone does the separating -- a divider per row reads as noise
@@ -2242,52 +2372,45 @@ $tone-gold: #a16207;
 		padding: 16px;
 	}
 
-	// The two upper columns share the available height; the management spotlight is a separate
-	// full-width card below them. The pane itself remains fixed and never becomes a scroll surface.
+	// The taller content column establishes the row height. Stretch both columns to that
+	// height, then let Appearance absorb the left column's remaining space below Network.
+	// Cards retain their content floors; the pane stays fixed with no new scroll surface.
 	.settings-cols {
 		flex-direction: row;
 		align-items: stretch;
-		flex: 1 1 0;
+		flex: 0 0 auto;
 		min-height: 0;
 		gap: 13px;
 	}
 
 	.settings-col {
 		flex-direction: column;
-		flex: 1 1 0;
 		min-width: 0;
 		gap: 13px;
 	}
 
-	// WAVE3 FIX 3 -- Appearance is the primary customization workspace: FIRST in the primary column,
-	// which takes the larger share of the width, and the card that grows into the column's slack (room
-	// for the native colour picker); Network Management sits beneath it at content height
-	// (.settings-group is already flex-shrink: 0). Diagnostics keeps the secondary column and still
-	// fills it. Height budget at frozen XL, from the sheet's own literals: workspace 541 - .settings
-	// padding 32 - head 32 - management ~64 - two 13px gaps = ~387 for .settings-cols; Appearance at
-	// content (~125: padding 28, label 16, hint 15, 30px picker row, three 8px gaps)
-	// + 13 + Network ~165 = ~303 fits with room to spare for a taller or wrapping picker row;
-	// Diagnostics with seven 30px rows and 8px gaps = ~358 fits.
-	.settings-col-primary {
-		flex: 3 1 0;
+	// Retain the former Appearance + Network shares and their internal gutter, so the
+	// Diagnostics column keeps the same width and horizontal position.
+	.settings-col-network {
+		flex: 6.6 1 13px;
 	}
 
 	.settings-col-diagnostics {
-		flex: 2 1 0;
+		flex: 3.6 1 0;
 	}
 
-	.settings-appearance,
-	.settings-diagnostics {
-		flex: 1 1 0;
-		min-height: 0;
+	.settings-appearance {
+		flex-grow: 1;
 	}
 
+	// Management sits beneath Diagnostics in the right column; the copy takes the slack and the
+	// Open button keeps its width, so a narrower column wraps the hint rather than the control.
 	.settings-management {
 		flex-direction: row;
 		align-items: center;
 		justify-content: space-between;
 		width: 100%;
-		gap: 16px;
+		gap: 12px;
 	}
 
 	.settings-management-copy {
@@ -2747,12 +2870,21 @@ $tone-gold: #a16207;
 		color: $blue;
 	}
 
-	.settings-btn:hover,
+	// Only enabled roles receive the active wash; inert accent controls never match.
+	.settings-save-primary:hover,
+	.accent-cancel:hover,
+	.accent-reset:hover,
 	.wp-move-primary:hover,
 	.wp-go-row:hover {
 		border-color: rgba($blue, 0.55);
 		background-color: rgba($blue, 0.10);
 		color: $text;
+	}
+
+	.settings-save-primary {
+		flex-direction: row;
+		flex-shrink: 0;
+		white-space: nowrap;
 	}
 
 	.settings-save-primary,
@@ -3129,8 +3261,6 @@ $tone-gold: #a16207;
 	.settings-save-disabled:hover,
 	.wp-go-disabled,
 	.wp-go-disabled:hover,
-	.accent-action-disabled,
-	.accent-action-disabled:hover,
 	.confirm-disabled-state,
 	.confirm-disabled-state:hover,
 	.tp-disabled-state,
@@ -3180,10 +3310,11 @@ $tone-gold: #a16207;
 	// WAVE3 FIX 3(e) -- comfortable spacing for the seven rows (8px gap, 30px rows; 7 x 30 + 6 x 8 = 258,
 	// which the column's ~387px budget holds with the label, hint and padding). No row was added:
 	// every live sensor this razor already receives is on the card, and two more rows would not fit.
+	// No extra top margin: the card's own 8px gap already separates the grid from the hint, and the
+	// third column's budget (see .settings-cols) has no 8px to spare.
 	.diag-grid {
 		flex-direction: column;
 		gap: 8px;
-		margin-top: 8px;
 	}
 
 	.diag-row {
@@ -3209,23 +3340,33 @@ $tone-gold: #a16207;
 	}
 
 	// ---- OPUS-ULX-SETTINGS-2: Appearance card ----
-	.accent-reset {
-		min-height: 30px;
-		padding: 0 10px;
-		font-size: 12px;
+	.accent-actions > .settings-btn {
+		flex-direction: row;
+		flex-shrink: 0;
+		min-height: 44px;
+		padding: 0 16px;
+		gap: 8px;
+		font-size: 14px;
+		white-space: nowrap;
 	}
 
-	// One always-open native palette fills the card without the redundant preset strip or a popup.
-	// It is scoped and sized here because the engine default is 240px, taller than this fixed panel.
+	// The larger native palette and summary share the existing Appearance card interior.
+	// Stretch the summary into the available height so its actions can sit at the lower right.
+	// The 176px square retains the current hue strip and hidden alpha control; verify the fit in-engine.
 	.accent-palette {
 		flex-direction: row;
-		align-items: flex-start;
-		gap: 14px;
+		align-items: stretch;
+		flex: 1 1 auto;
+		min-height: 0;
+		gap: 16px;
 		margin-top: 0;
 	}
 
 	.accent-picker-inline {
+		flex-direction: column;
 		flex-shrink: 0;
+		width: 176px;
+		min-height: 0;
 	}
 
 	.accent-picker-inline ColorPickerControl {
@@ -3234,8 +3375,8 @@ $tone-gold: #a16207;
 	}
 
 	.accent-picker-inline ColorSaturationValueControl {
-		width: 128px;
-		height: 128px;
+		width: 176px;
+		height: 176px;
 	}
 
 	.accent-picker-inline ColorHueControl {
@@ -3250,13 +3391,23 @@ $tone-gold: #a16207;
 		flex-direction: column;
 		flex: 1 1 0;
 		min-width: 0;
-		gap: 10px;
+		min-height: 0;
+		gap: 12px;
 	}
 
 	.accent-state-row {
 		flex-direction: row;
+		align-items: flex-start;
+		flex-shrink: 0;
+		gap: 12px;
+	}
+
+	.accent-preview-slot {
+		flex-direction: column;
 		align-items: center;
-		gap: 9px;
+		flex-shrink: 0;
+		width: 48px;
+		gap: 4px;
 	}
 
 	.accent-preview {
@@ -3268,14 +3419,15 @@ $tone-gold: #a16207;
 	}
 
 	.accent-preview-applied {
-		width: 30px;
-		height: 30px;
+		width: 48px;
+		height: 48px;
 	}
 
 	.accent-state-copy {
 		flex-direction: column;
 		min-width: 0;
 		gap: 2px;
+		margin-top: 4px;
 	}
 
 	.accent-state-label {
@@ -3285,16 +3437,20 @@ $tone-gold: #a16207;
 		letter-spacing: 1px;
 	}
 
+	// Wraps rather than overflows: the summary column is the flexible one beside the picker.
 	.accent-state-value {
 		color: $text;
 		font-size: 12px;
-		white-space: nowrap;
+		white-space: normal;
 	}
 
 	.accent-actions {
 		flex-direction: row;
-		flex-wrap: wrap;
-		gap: 7px;
+		flex-wrap: nowrap;
+		justify-content: flex-end;
+		flex-shrink: 0;
+		gap: 12px;
+		margin-top: auto;
 	}
 
 	.accent-apply {
@@ -3305,6 +3461,15 @@ $tone-gold: #a16207;
 
 	.accent-apply:hover {
 		background-color: $blue;
+	}
+
+	.accent-action-disabled,
+	.accent-action-disabled:hover {
+		pointer-events: all;
+		cursor: default;
+		border-color: rgba($muted, 0.20);
+		background-color: rgba($muted, 0.07);
+		color: $muted;
 	}
 
 }

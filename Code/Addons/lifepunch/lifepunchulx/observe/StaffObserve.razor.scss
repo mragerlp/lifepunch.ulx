@@ -41,6 +41,11 @@
 		}
 	}
 
+	// SanctionsOnly mount (ULX-FINAL-3): the head wears the sanctions role, never the amber observe tone.
+	.observe-head-sanctions .material-icons {
+		color: #c05f5f;
+	}
+
 	.observe-title {
 		font-size: 16px;
 		font-weight: 700;
@@ -164,6 +169,12 @@
 		flex-shrink: 0;
 	}
 
+	// Sub-head INSIDE the unified sanctions view (staff actions this boot): quieter than the block head.
+	.observe-section-head-sub {
+		font-size: 11px;
+		padding: 8px 0 2px 0;
+	}
+
 	.observe-hint {
 		font-size: 11px;
 		color: #8d8f90;
@@ -215,6 +226,23 @@
 		color: #d99a3f;
 		padding: 4px 0;
 		flex-shrink: 0;
+	}
+
+	// A caveat that states a plumbing fact (no lifetime source yet), not a warning: muted, not amber.
+	.observe-caveat-muted {
+		color: #8d8f90;
+	}
+
+	// Staff actions this boot, inside the unified sanctions view: a CONTENT-SIZED local scroller (about
+	// five 24px .event-row floors plus the 26px tail before it scrolls), so the sanction table stays the
+	// block's only grower and one ring row never claims half the pane. Rows are the shell sheet's
+	// .event-row family; .observe-list still supplies min-height: 0 and overflow-y: scroll.
+	.observe-staff-acts {
+		flex: 0 1 auto;
+		max-height: 146px;
+		background-color: #111214;
+		border: 1px solid #343536;
+		border-radius: 6px;
 	}
 
 	.observe-overflow {
@@ -435,26 +463,18 @@
 		flex-shrink: 0;
 	}
 
-	.observe-history-badge,
-	.observe-api-badge {
+	// The unconditional "Server API required" badge (.observe-api-badge) is retired: API state is now
+	// carried by the record badge on the subject row and the state copy, both driven by SanctionsReadState.
+	.observe-history-badge {
 		padding: 3px 8px;
 		border-radius: 4px;
 		font-size: 10px;
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.6px;
-	}
-
-	.observe-history-badge {
 		background-color: #272829;
 		border: 1px solid #d99a3f;
 		color: #d99a3f;
-	}
-
-	.observe-api-badge {
-		background-color: #2b2022;
-		border: 1px solid #c05f5f;
-		color: #d98383;
 	}
 
 	.observe-sanctions-actions {
@@ -506,10 +526,12 @@
 		}
 	}
 
+	// Compact by design: the picker sizes to its rows (one online match = one row) and only its list
+	// grows a local scroller when the matches overflow the cap below.
 	.observe-sanctions-picker {
 		flex-direction: column;
 		gap: 8px;
-		flex: 1 1 0;
+		flex: 0 1 auto;
 		min-height: 0;
 		padding: 10px;
 		background-color: #1b1c1e;
@@ -579,10 +601,12 @@
 		}
 	}
 
+	// max-height, not a grow share: about five 42px rows plus the tail before the list scrolls.
 	.observe-subject-list {
 		flex-direction: column;
-		flex: 1 1 0;
+		flex: 0 1 auto;
 		min-height: 0;
+		max-height: 240px;
 		overflow-y: scroll;
 	}
 

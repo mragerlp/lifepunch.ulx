@@ -24,6 +24,21 @@
    EXISTING source through StaffObserveHost; views whose source does not exist yet
    render an honest reserved state from StaffObserveSockets instead of fixture rows. *@
 <root class="observe">
+	@if ( SanctionsOnly )
+	{
+		@* ULX-FINAL-3 SANCTIONS CONSOLIDATION -- one renderer for every entry point. The profile route
+		   mounts THIS component in SanctionsOnly mode (per-subject CanViewSanctions is the only gate that
+		   applies there, so lower-rank history access is preserved); the full Observe hub keeps its stricter
+		   CanViewObserve mount and its tab strip. The hidden StaffMenu sanctions list is retired. *@
+		<div class="observe-head observe-head-sanctions">
+			<i class="material-icons">gavel</i>
+			<span class="observe-title">Sanctions</span>
+			<span class="observe-badge">Read-only</span>
+			<span class="observe-sub">One player's history and this boot's staff actions. Issuing stays in Moderation; the Portal is authoritative.</span>
+		</div>
+	}
+	else
+	{
 	<div class="observe-head">
 		<i class="material-icons">visibility</i>
 		<span class="observe-title">Observe</span>
@@ -48,9 +63,10 @@
 			<i class="material-icons">admin_panel_settings</i><span>Ranks</span>
 		</button>
 	</div>
+	}
 
 	<div class="observe-body">
-	@if ( _view == ObserveView.Sentinel )
+	@if ( ActiveView == ObserveView.Sentinel )
 	{
 		<div class="observe-view">
 			<div class="observe-block">
@@ -156,7 +172,7 @@
 			</div>
 		</div>
 	}
-	else if ( _view == ObserveView.Economy )
+	else if ( ActiveView == ObserveView.Economy )
 	{
 		<div class="observe-view">
 			<div class="observe-block">
@@ -265,7 +281,7 @@
 			</div>
 		</div>
 	}
-	else if ( _view == ObserveView.Staff )
+	else if ( ActiveView == ObserveView.Staff )
 	{
 		<div class="observe-view">
 			<div class="observe-block">
@@ -410,18 +426,27 @@
 			</div>
 		</div>
 	}
-	else if ( _view == ObserveView.Sanctions )
+	else if ( ActiveView == ObserveView.Sanctions )
 	{
 		<div class="observe-view">
 			<div class="observe-block observe-block-sanctions">
+				@{
+					// Sensed once per render and shared by the actions row and the body, so the retry
+					// affordance and the copy can never disagree about which state the read is in.
+					var subjectState = _sanctionsSubjectId == 0
+						? SanctionsReadState.Unanswered
+						: StaffMenuHost.GetSanctionsState( _sanctionsSubjectId );
+				}
 				<div class="observe-sanctions-overview">
 					<div class="observe-sanctions-intro">
 						<div class="observe-section-head">Sanctions management</div>
-						<div class="observe-hint">Review one player's history here, open Moderation to issue a sanction, and use the Portal for appeal decisions or pardons.</div>
+						<div class="observe-hint">Review one player's history here, open Moderation to issue a sanction, and use the Portal for issuer detail, appeal decisions or pardons.</div>
 					</div>
 					<div class="observe-sanctions-badges">
 						<span class="observe-history-badge">History only</span>
-						<span class="observe-api-badge">Server API required</span>
+						@* The unconditional "Server API required" badge is retired: it sat beside a clean-empty
+						   answer and contradicted it. The record badge on the subject row and the state copy
+						   below are driven by SanctionsReadState instead, so the pane says one thing. *@
 					</div>
 				</div>
 				<div class="observe-sanctions-actions">
@@ -433,8 +458,20 @@
 								<i class="material-icons">gavel</i><span>Open Moderation</span>
 							</button>
 						}
+						@if ( subjectState is SanctionsReadState.Failed or SanctionsReadState.Unanswered )
+						{
+							<button class="observe-route-button" onclick="@RetrySanctionsRead" tooltip="Ask the host for this record again (never changes it)">
+								<i class="material-icons">refresh</i><span>Retry read</span>
+							</button>
+						}
 						<button class="observe-route-button" onclick="@ClearSanctionsSubject">
 							<i class="material-icons">person_search</i><span>Change player</span>
+						</button>
+					}
+					@if ( OnReturnToProfile is not null )
+					{
+						<button class="observe-route-button" onclick="@ReturnToProfile" tooltip="Back to the player profile this view was opened from">
+							<i class="material-icons">arrow_back</i><span>Return to profile</span>
 						</button>
 					}
 					<button class="observe-route-button observe-route-portal" onclick="@CopyPortalSanctionsLink" tooltip="Copy https://dxrp.net/portal/sanctions">
@@ -488,11 +525,11 @@
 				}
 				else if ( !StaffMenuHost.CanViewSanctions( _sanctionsSubjectId ) )
 				{
-					<div class="observe-empty">You do not have permission to view sanctions.</div>
+					<div class="observe-empty">You do not have permission to view this player's sanctions. The record is unknown, not empty.</div>
 				}
 				else
 				{
-					var sanctionState = StaffMenuHost.GetSanctionsState( _sanctionsSubjectId );
+					var sanctionState = subjectState;
 					<div class="observe-sanctions-subject">
 						<i class="material-icons">person</i>
 						<span class="observe-subject-identity">
@@ -507,7 +544,9 @@
 					}
 					else if ( sanctionState == SanctionsReadState.Unavailable )
 					{
-						<div class="observe-empty">Sanction history is unavailable in this session. Use the Portal to inspect the authoritative record — this is not a claim that the record is clean.</div>
+						@* HONEST AUTHORIZATION COPY (spec of record): the client cannot tell a missing server API
+						   authorization from a general service failure, so neither is dressed as the other. *@
+						<div class="observe-empty">Sanction API unavailable or unauthorized in this session; the record is unknown. Use the Portal for the authoritative record -- this is not a claim that the record is clean.</div>
 					}
 					else if ( sanctionState == SanctionsReadState.Loading )
 					{
@@ -527,7 +566,7 @@
 					}
 					else if ( sanctionState == SanctionsReadState.Failed )
 					{
-						<div class="observe-empty">The sanction service did not return a record. The result is unknown; choose the subject again to retry.</div>
+						<div class="observe-empty">The sanction service did not return a record: API unavailable or unauthorized; record unknown. Retry read asks the host again; the Portal holds the authoritative record.</div>
 					}
 					else if ( sanctionState is SanctionsReadState.Populated or SanctionsReadState.Filtered )
 					{
@@ -593,11 +632,57 @@
 					{
 						<div class="observe-empty">The sanction read returned an unknown state, so no record claim can be made.</div>
 					}
+
+					@* STAFF ACTIONS THIS BOOT -- carried over from the retired StaffMenu sanctions list so the one
+					   renderer holds everything the profile route used to show. Same host audit ring the Audit tab
+					   reads; the limitation is stated on the surface, not implied away. Row shape is the shell
+					   sheet's .event-row family. *@
+					<div class="observe-section-head observe-section-head-sub">Staff actions this boot</div>
+					<div class="observe-caveat">Host audit ring only: this boot, newest 500 rows, matched by SteamID inside each action's description. Not lifetime history -- the Portal holds the record.</div>
+					@if ( !StaffMenuHost.CanViewAudit() )
+					{
+						<div class="observe-empty">You do not have permission to view audit activity.</div>
+					}
+					else if ( !StaffObserveHost.RingLivesHere )
+					{
+						<div class="observe-empty">@StaffObserveHost.RingUnavailableText</div>
+					}
+					else
+					{
+						var staffActs = StaffMenuHost.GetAuditEntries( _sanctionsSubjectId.ToString(), "", false,
+							StaffActionTaxonomy.SanctionActionNames, AuditPlayerScope.Target );
+						@if ( staffActs.Count == 0 )
+						{
+							@if ( sanctionState == SanctionsReadState.CompletedEmpty )
+							{
+								<div class="observe-empty">No sanctions or staff actions recorded against this player this boot.</div>
+							}
+						}
+						else
+						{
+							<div class="lp-ui-scroll-region observe-list observe-staff-acts">
+							@foreach ( var entry in staffActs.Take( StaffActsCap ) )
+							{
+								<div class="event-row">
+									<span class="event-when">@entry.When</span>
+									<span class="event-act"><span class="@ActionPillClass( entry.Action )">@PresentAuditText( entry.Action )</span></span>
+									<span class="event-what">@PresentAuditText( entry.Description )</span>
+								</div>
+							}
+								<div class="observe-list-tail"></div>
+							</div>
+							@if ( staffActs.Count > StaffActsCap )
+							{
+								<div class="observe-overflow">@( $"Showing the newest {StaffActsCap} of {staffActs.Count} this boot -- the Audit tab reaches the rest." )</div>
+							}
+						}
+					}
+					<div class="observe-caveat observe-caveat-muted">Lifetime staff actions: no data source is wired yet -- the ring holds only this boot and the portal read-back is unbound. Nothing here is simulated.</div>
 				}
 			</div>
 		</div>
 	}
-	else if ( _view == ObserveView.Ranks )
+	else if ( ActiveView == ObserveView.Ranks )
 	{
 		<div class="observe-view">
 			<div class="observe-block">
@@ -677,6 +762,91 @@
 
 	public Action<long>? OnManagePlayer { get; set; }
 
+	// ---- ULX-FINAL-3: one sanctions renderer, two mounts --------------------------------
+	// SanctionsOnly = the profile route's mount: no Observe head or tab strip, the Sanctions
+	// view forced, the per-subject CanViewSanctions gate the only one that applies. The full hub
+	// (SanctionsOnly false) keeps the stricter CanViewObserve mount in StaffMenu.razor.
+	public bool SanctionsOnly { get; set; }
+
+	// Return path offered only when the parent seeded this view from a profile.
+	public Action? OnReturnToProfile { get; set; }
+
+	// Subject SEED from the parent: the player to open with, plus a version the parent bumps on
+	// every OpenSanctionsForPlayer. This component stays the single subject/request owner -- the
+	// seed is adopted exactly once per version (in the setter when the id is already set, or on the
+	// next Tick otherwise, so attribute order cannot matter), and a later Change player inside the
+	// view is never clobbered by the parent re-rendering the same seed.
+	public long SubjectSeedSteamId { get; set; }
+
+	private int _subjectSeedVersion;
+	private int _subjectSeedAdopted;
+
+	public int SubjectSeedVersion
+	{
+		get => _subjectSeedVersion;
+		set
+		{
+			_subjectSeedVersion = value;
+			AdoptSubjectSeedIfNew();
+		}
+	}
+
+	private void AdoptSubjectSeedIfNew()
+	{
+		if ( _subjectSeedVersion == _subjectSeedAdopted || SubjectSeedSteamId == 0 )
+		{
+			return;
+		}
+
+		_subjectSeedAdopted = _subjectSeedVersion;
+		var online = StaffMenuHost.OnlinePlayers().FirstOrDefault( player => player.SteamId == SubjectSeedSteamId );
+		OpenSanctions( SubjectSeedSteamId,
+			online.SteamId == SubjectSeedSteamId ? online.Name : $"SteamID {SubjectSeedSteamId}" );
+	}
+
+	/// <summary>The view actually rendered: the seed mount is pinned to Sanctions whatever _view says.</summary>
+	private ObserveView ActiveView => SanctionsOnly ? ObserveView.Sanctions : _view;
+
+	private void ReturnToProfile()
+	{
+		OnReturnToProfile?.Invoke();
+	}
+
+	/// <summary>Ask the host again for the current subject. Read-only: it never changes a record.</summary>
+	private void RetrySanctionsRead()
+	{
+		if ( _sanctionsSubjectId == 0 || !StaffMenuHost.CanViewSanctions( _sanctionsSubjectId ) )
+		{
+			return;
+		}
+
+		StaffMenuHost.RequestSanctions( _sanctionsSubjectId, forceRetry: true );
+		RecomputeDataHash();
+		StateHasChanged();
+	}
+
+	// Newest-first cap for the staff-actions list, disclosed on the surface when exceeded.
+	private const int StaffActsCap = 12;
+
+	// Presentation only (same helper the shell razor carries): localize #tokens in ring text;
+	// raw keys stay untouched for filtering, counts, and storage.
+	private static string PresentAuditText( string text )
+	{
+		if ( string.IsNullOrWhiteSpace( text ) || !text.Contains( '#' ) )
+		{
+			return text;
+		}
+
+		return System.Text.RegularExpressions.Regex.Replace( text, @"#[A-Za-z0-9._-]+", match =>
+		{
+			var key = match.Value[1..];
+			var localized = StaffMenuHost.Localize( key );
+			return string.IsNullOrWhiteSpace( localized ) || localized == key || localized == match.Value
+				? match.Value
+				: localized;
+		} );
+	}
+
 	// Live-data snapshot hash on a fixed cadence, mirroring the shell's throttle pattern:
 	// folding raw reads into BuildHash every frame would re-run permission scans per player
 	// per frame and rebuild the panel continuously.
@@ -686,6 +856,9 @@
 
 	public override void Tick()
 	{
+		// Order-independent seed adoption (see SubjectSeedVersion): cheap int compare per frame.
+		AdoptSubjectSeedIfNew();
+
 		if ( _sinceRefresh < RefreshInterval )
 		{
 			return;
@@ -702,7 +875,7 @@
 		// and a minute bucket keeps relative "When" labels honest while the panel sits open.
 		var hash = HashCode.Combine( StaffMenuHost.AuditVersion, DateTime.UtcNow.Ticks / TimeSpan.TicksPerMinute );
 
-		if ( _view == ObserveView.Sentinel )
+		if ( ActiveView == ObserveView.Sentinel )
 		{
 			foreach ( var row in StaffObserveHost.FlaggedOnlinePlayers() )
 			{
@@ -714,7 +887,7 @@
 				}
 			}
 		}
-		else if ( _view == ObserveView.Economy )
+		else if ( ActiveView == ObserveView.Economy )
 		{
 			foreach ( var row in StaffObserveHost.TopHoldings( int.MaxValue ) )
 			{
@@ -722,7 +895,7 @@
 					row.Wallet, row.Bank, row.Total );
 			}
 		}
-		else if ( _view == ObserveView.Staff )
+		else if ( ActiveView == ObserveView.Staff )
 		{
 			foreach ( var row in StaffObserveHost.StaffActivity() )
 			{
@@ -736,10 +909,12 @@
 				}
 			}
 		}
-		else if ( _view == ObserveView.Sanctions )
+		else if ( ActiveView == ObserveView.Sanctions )
 		{
 			var canViewSanctions = StaffMenuHost.CanViewSanctions( _sanctionsSubjectId );
-			hash = HashCode.Combine( hash, _sanctionsSubjectId, canViewSanctions,
+			// CanViewAudit gates the staff-actions block of the unified view, so it is sampled here on the
+			// same one-second permission cadence the shell's tab guard uses.
+			hash = HashCode.Combine( hash, _sanctionsSubjectId, canViewSanctions, StaffMenuHost.CanViewAudit(),
 				_sanctionsSearchText, _sanctionsTypeFilter, _portalLinkCopied );
 
 			if ( canViewSanctions && _sanctionsSubjectId != 0 )
@@ -759,7 +934,7 @@
 				}
 			}
 		}
-		else if ( _view == ObserveView.Ranks )
+		else if ( ActiveView == ObserveView.Ranks )
 		{
 			var canViewRanks = LpParityHost.CanViewRanks();
 			hash = HashCode.Combine( hash, LpParityHost.RanksAreAvailable, canViewRanks,
@@ -954,9 +1129,11 @@
 			return count == 1 ? $"1{suffix} record" : $"{count}{suffix} records";
 		}
 
+		// Only CompletedEmpty may say 0 or imply a clean record. Unavailable and Failed cannot be told
+		// apart from a missing API authorization on this client, so both wear the honest copy.
 		if ( state == SanctionsReadState.CompletedEmpty ) return "0 records";
 		if ( state == SanctionsReadState.Loading ) return "Loading";
-		if ( state == SanctionsReadState.Unavailable ) return "API unavailable";
+		if ( state is SanctionsReadState.Unavailable or SanctionsReadState.Failed ) return "API unavailable or unauthorized";
 		if ( state == SanctionsReadState.PermissionDenied ) return "Restricted";
 		return "Record unknown";
 	}
@@ -1044,6 +1221,13 @@
 		=> StaffMenuHost.AuditActionTone( action );
 
 	protected override int BuildHash()
-		=> HashCode.Combine( _view, _dataHash, _staffActorFilter, _sanctionsSubjectId,
-			_sanctionsSubjectName, _sanctionsSearchText, _sanctionsTypeFilter, _portalLinkCopied );
+		// The sanctions RESPONSE is hashed directly (revision + who it answered for + the state), not only
+		// through the one-second _dataHash cadence, so a delivered answer repaints the frame it lands --
+		// the same R8-H1 contract the shell razor adopted. Mode and the return affordance are view state.
+		=> HashCode.Combine(
+			HashCode.Combine( ActiveView, _dataHash, _staffActorFilter, _sanctionsSubjectId,
+				_sanctionsSubjectName, _sanctionsSearchText, _sanctionsTypeFilter, _portalLinkCopied ),
+			HashCode.Combine( SanctionsOnly, OnReturnToProfile is not null, _subjectSeedAdopted,
+				StaffMenuHost.SanctionsClientRevision, StaffMenuHost.SanctionsAnsweredFor,
+				(int)StaffMenuHost.GetSanctionsState( _sanctionsSubjectId ), StaffMenuHost.AuditVersion ) );
 }
