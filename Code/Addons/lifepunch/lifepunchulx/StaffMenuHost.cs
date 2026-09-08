@@ -641,6 +641,41 @@ internal static class StaffMenuHost
 	}
 
 	/// <summary>
+	/// Observed state used to describe a toggle's next operation. Match the source the native
+	/// command tests; null means unavailable, not OFF. X-ray has no supported state reader yet.
+	/// </summary>
+	public static bool? GetCommandToggleState( string actionKey, long steamId )
+	{
+#if !LIFEPUNCH_LOCAL
+		var player = GameUtils.Players.FirstOrDefault( x => x.IsValid() && x.SteamId == steamId );
+		if ( !player.IsValid() )
+		{
+			return null;
+		}
+
+		switch ( actionKey )
+		{
+			case "god":
+				return player.HasStatus( Constants.GodStatus );
+			case "cloak":
+				return player.HasStatus( "cloak" );
+			case "incognito":
+				return player.HasStatus( "incognito" );
+			case "freeze":
+				return player.HasStatus( Constants.FreezeStatus );
+			case "noclip":
+				if ( !player.Controller.IsValid() )
+				{
+					return null;
+				}
+				var noclip = player.Controller.Components.Get<MoveModeNoClip>();
+				return noclip.IsValid() ? noclip.IsNoclipping : null;
+		}
+#endif
+		return null;
+	}
+
+	/// <summary>
 	/// True when a self-toggle action is ACTIVE on the local player right now. Read from live DXRP
 	/// state -- the networked status dictionary for god/cloak/incognito, the controller's noclip mode
 	/// for flight -- so a lit menu card and the HUD indicator can never disagree. A local click flag

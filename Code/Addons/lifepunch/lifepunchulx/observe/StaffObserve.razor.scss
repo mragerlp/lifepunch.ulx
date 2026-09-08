@@ -55,6 +55,15 @@ $observe-ranks-accent: hotpink;
 		color: #e4e6e8;
 	}
 
+	// Only the Observe hub receives the stronger heading; the profile route stays compact.
+	.observe-head-overview .material-icons {
+		font-size: 24px;
+	}
+
+	.observe-title-overview {
+		font-size: 20px;
+	}
+
 	// The read-only promise, worn on the surface itself: amber = observation tone in the
 	// shell's accent law, never the severe red.
 	.observe-badge {
@@ -597,7 +606,7 @@ $observe-ranks-accent: hotpink;
 		}
 	}
 
-	// max-height, not a grow share: about five 42px rows plus the tail before the list scrolls.
+	// A compact cap for the subject list; its measured scroll limit reaches the final option.
 	.observe-subject-list {
 		flex-direction: column;
 		flex: 0 1 auto;
@@ -826,11 +835,4 @@ $observe-ranks-accent: hotpink;
 		color: #d99a3f;
 	}
 
-	// Every local list carries its own complete-row clearance. Variable-height flag rows remain
-	// allowed to wrap; the tail protects the true final row without shrinking or clipping it.
-	.observe-list-tail {
-		flex-shrink: 0;
-		width: 100%;
-		height: 26px;
-	}
 }

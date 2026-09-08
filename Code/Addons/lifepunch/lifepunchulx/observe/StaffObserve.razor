@@ -39,11 +39,10 @@
 	}
 	else
 	{
-	<div class="observe-head">
+	<div class="observe-head observe-head-overview">
 		<i class="material-icons">visibility</i>
-		<span class="observe-title">Observe</span>
-		<span class="observe-badge">Read-only</span>
-		<span class="observe-sub">Forensics for server owners -- watches, never acts.</span>
+		<span class="observe-title observe-title-overview">Observe</span>
+		<span class="observe-sub">Player activity, staff oversight, and server records.</span>
 	</div>
 
 	<div class="observe-tabs">
@@ -81,7 +80,7 @@
 				}
 				else
 				{
-					<div class="lp-ui-scroll-region observe-list">
+					<div class="lp-ui-scroll-region observe-list lp-ui-measured-scroll">
 					@foreach ( var row in flagged )
 					{
 						<div class="observe-row @( row.AnyIllegitimate ? "observe-row-alert" : "" )">
@@ -97,7 +96,6 @@
 							<span class="o-id">@row.Player.SteamId</span>
 						</div>
 					}
-						<div class="observe-list-tail"></div>
 					</div>
 				}
 			</div>
@@ -118,7 +116,7 @@
 				}
 				else
 				{
-					<div class="lp-ui-scroll-region observe-list">
+					<div class="lp-ui-scroll-region observe-list lp-ui-measured-scroll">
 					@foreach ( var entry in StaffObserveSockets.SentinelEvents.Take( DisplayCap ) )
 					{
 						<div class="observe-row observe-row-alert">
@@ -128,7 +126,6 @@
 							<span class="o-id">@entry.SteamId</span>
 						</div>
 					}
-						<div class="observe-list-tail"></div>
 					</div>
 					@if ( StaffObserveSockets.SentinelEvents.Count > DisplayCap )
 					{
@@ -152,7 +149,7 @@
 				}
 				else
 				{
-					<div class="lp-ui-scroll-region observe-list">
+					<div class="lp-ui-scroll-region observe-list lp-ui-measured-scroll">
 					@foreach ( var entry in moderation.Take( DisplayCap ) )
 					{
 						<div class="observe-row">
@@ -162,7 +159,6 @@
 							<span class="o-desc">@entry.Description</span>
 						</div>
 					}
-						<div class="observe-list-tail"></div>
 					</div>
 					@if ( moderation.Count > DisplayCap )
 					{
@@ -188,7 +184,7 @@
 				}
 				else
 				{
-					<div class="lp-ui-scroll-region observe-list">
+					<div class="lp-ui-scroll-region observe-list lp-ui-measured-scroll">
 					@foreach ( var row in holdings )
 					{
 						<div class="observe-row">
@@ -199,7 +195,6 @@
 							<span class="o-total">@( $"${row.Total.ToString( "N0", System.Globalization.CultureInfo.InvariantCulture )}" )</span>
 						</div>
 					}
-						<div class="observe-list-tail"></div>
 					</div>
 					@if ( allHoldings.Count > HoldingsCap )
 					{
@@ -227,7 +222,7 @@
 				}
 				else
 				{
-					<div class="lp-ui-scroll-region observe-list">
+					<div class="lp-ui-scroll-region observe-list lp-ui-measured-scroll">
 					@foreach ( var delta in economyDeltas.Take( DisplayCap ) )
 					{
 						<div class="observe-row">
@@ -237,7 +232,6 @@
 							<span class="o-desc">@delta.Source</span>
 						</div>
 					}
-						<div class="observe-list-tail"></div>
 					</div>
 					@if ( economyDeltas.Count > DisplayCap )
 					{
@@ -261,7 +255,7 @@
 				}
 				else
 				{
-					<div class="lp-ui-scroll-region observe-list">
+					<div class="lp-ui-scroll-region observe-list lp-ui-measured-scroll">
 					@foreach ( var entry in economy.Take( DisplayCap ) )
 					{
 						<div class="observe-row">
@@ -271,7 +265,6 @@
 							<span class="o-desc">@entry.Description</span>
 						</div>
 					}
-						<div class="observe-list-tail"></div>
 					</div>
 					@if ( economy.Count > DisplayCap )
 					{
@@ -305,7 +298,7 @@
 					{
 						<div class="observe-caveat">@StaffObserveHost.RingUnavailableText</div>
 					}
-					<div class="lp-ui-scroll-region observe-list">
+					<div class="lp-ui-scroll-region observe-list lp-ui-measured-scroll">
 					@foreach ( var row in staff )
 					{
 						<div class="observe-row">
@@ -334,7 +327,6 @@
 							}
 						</div>
 					}
-						<div class="observe-list-tail"></div>
 					</div>
 					@if ( StaffObserveHost.RingLivesHere )
 					{
@@ -359,7 +351,7 @@
 				}
 				else
 				{
-					<div class="lp-ui-scroll-region observe-list">
+					<div class="lp-ui-scroll-region observe-list lp-ui-measured-scroll">
 					@foreach ( var member in StaffObserveSockets.OfflineStaff.Take( DisplayCap ) )
 					{
 						<div class="observe-row">
@@ -369,7 +361,6 @@
 							<span class="o-meta">@member.TotalPlaytime</span>
 						</div>
 					}
-						<div class="observe-list-tail"></div>
 					</div>
 					@if ( StaffObserveSockets.OfflineStaff.Count > DisplayCap )
 					{
@@ -406,7 +397,7 @@
 				}
 				else if ( StaffObserveHost.RingLivesHere )
 				{
-					<div class="lp-ui-scroll-region observe-list">
+					<div class="lp-ui-scroll-region observe-list lp-ui-measured-scroll">
 					@foreach ( var entry in staffLog.Take( DisplayCap ) )
 					{
 						<div class="observe-row">
@@ -416,7 +407,6 @@
 							<span class="o-desc">@entry.Description</span>
 						</div>
 					}
-						<div class="observe-list-tail"></div>
 					</div>
 					@if ( staffLog.Count > DisplayCap )
 					{
@@ -500,7 +490,7 @@
 						}
 						else
 						{
-							<div class="lp-ui-scroll-region observe-subject-list">
+							<div class="lp-ui-scroll-region observe-subject-list lp-ui-measured-scroll">
 							@foreach ( var player in subjectMatches.Take( DisplayCap ) )
 							{
 								<button class="observe-subject-option" onclick="@(() => OpenSanctions( player.SteamId, player.Name ))">
@@ -513,7 +503,6 @@
 									<i class="material-icons">chevron_right</i>
 								</button>
 							}
-								<div class="observe-list-tail"></div>
 							</div>
 							@if ( subjectMatches.Count > DisplayCap )
 							{
@@ -601,7 +590,7 @@
 								<span class="s-duration">Duration</span>
 								<span class="s-details">Reason and flags</span>
 							</div>
-							<div class="lp-ui-scroll-region observe-list observe-sanction-list">
+							<div class="lp-ui-scroll-region observe-list observe-sanction-list lp-ui-measured-scroll">
 							@foreach ( var sanction in visibleSanctions )
 							{
 								<div class="sanction-row observe-sanction-row @( sanction.IsActive ? "sanction-active" : "" )">
@@ -623,7 +612,6 @@
 									</span>
 								</div>
 							}
-								<div class="observe-list-tail"></div>
 							</div>
 						}
 					}
@@ -667,7 +655,7 @@
 					}
 					else
 					{
-						<div class="lp-ui-scroll-region observe-list">
+						<div class="lp-ui-scroll-region observe-list lp-ui-measured-scroll">
 						@foreach ( var rank in ranks )
 						{
 							<div class="observe-row">
@@ -680,7 +668,6 @@
 								<span class="o-id">@( rank.HoldersOnline == 1 ? "1 holder online" : $"{rank.HoldersOnline} holders online" )</span>
 							</div>
 						}
-							<div class="observe-list-tail"></div>
 						</div>
 					}
 				}
@@ -790,6 +777,7 @@
 	{
 		// Order-independent seed adoption (see SubjectSeedVersion): cheap int compare per frame.
 		AdoptSubjectSeedIfNew();
+		UpdateObserveScroll();
 
 		if ( _sinceRefresh < RefreshInterval )
 		{
@@ -798,6 +786,62 @@
 
 		_sinceRefresh = 0;
 		RecomputeDataHash();
+	}
+
+	// Match Audit's measured end limit; rows keep their natural heights and need no tail.
+	private const float ObserveEndSnapDistance = 8f;
+	private bool _scrollContextInitialized;
+	private ObserveView _scrollView;
+	private long _scrollStaffActor;
+	private long _scrollSanctionsSubject;
+	private string _scrollSanctionsSearch = "";
+	private string _scrollSanctionsType = "All";
+
+	private void UpdateObserveScroll()
+	{
+		var search = _sanctionsSearchText ?? "";
+		var reset = !_scrollContextInitialized
+			|| _scrollView != ActiveView
+			|| _scrollStaffActor != _staffActorFilter
+			|| _scrollSanctionsSubject != _sanctionsSubjectId
+			|| !string.Equals( _scrollSanctionsSearch, search, StringComparison.Ordinal )
+			|| !string.Equals( _scrollSanctionsType, _sanctionsTypeFilter, StringComparison.Ordinal );
+
+		_scrollContextInitialized = true;
+		_scrollView = ActiveView;
+		_scrollStaffActor = _staffActorFilter;
+		_scrollSanctionsSubject = _sanctionsSubjectId;
+		_scrollSanctionsSearch = search;
+		_scrollSanctionsType = _sanctionsTypeFilter;
+
+		foreach ( var list in Descendants )
+		{
+			if ( !list.IsValid || !list.HasClass( "lp-ui-measured-scroll" )
+				|| (!list.HasClass( "observe-list" ) && !list.HasClass( "observe-subject-list" )) )
+			{
+				continue;
+			}
+
+			if ( reset )
+			{
+				list.ScrollOffset = Vector2.Zero;
+				continue;
+			}
+
+			if ( list.Box.Rect.Height <= 1f )
+			{
+				continue;
+			}
+
+			var maxY = LifePunchUiScrollPolicy.GetMeasuredScrollMaxY( list );
+			var remaining = maxY - list.ScrollOffset.y;
+			if ( remaining > ObserveEndSnapDistance || remaining <= 0.01f )
+			{
+				continue;
+			}
+
+			list.ScrollOffset = new Vector2( 0f, maxY );
+		}
 	}
 
 	private void RecomputeDataHash()

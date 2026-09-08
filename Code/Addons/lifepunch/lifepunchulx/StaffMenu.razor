@@ -1268,7 +1268,7 @@
 						&& moneyState is StaffMoneyGrantState.Pending or StaffMoneyGrantState.Succeeded or StaffMoneyGrantState.Unknown;
 					var moneyNavigationLocked = pending.Dispatch == StaffDispatchKind.GiveMoney
 						&& moneyState is StaffMoneyGrantState.Pending or StaffMoneyGrantState.Unknown;
-					var formCanConfirm = requiredArgsComplete && !moneyLocked;
+					var formCanConfirm = requiredArgsComplete && !moneyLocked && HasRequiredToggleState( pending );
 					var targetContext = pending.Dispatch == StaffDispatchKind.GiveMoney
 					                    && moneyState != StaffMoneyGrantState.Idle
 					                    && _moneyGrantTargetSteamId != 0
@@ -1279,8 +1279,12 @@
 					<div class="arg-form @( pending.Dispatch == StaffDispatchKind.GiveMoney ? "arg-form-money" : pending.Key == "setjob" ? "arg-form-setjob" : "" )">
 						<div class="arg-form-head">
 							<div class="arg-context">
-								<span class="arg-action">@pending.Label</span>
+								<span class="arg-action">@PendingActionLabel( pending )</span>
 								<span class="arg-target">Target: @targetContext</span>
+								@if ( IsToggleAction( pending ) )
+								{
+									<span class="arg-target">Current state: @ToggleStateLabel( _pendingToggleState )</span>
+								}
 							</div>
 							<button class="icon-btn @( moneyNavigationLocked ? "control-disabled" : "" )"
 							        tooltip="@( moneyState == StaffMoneyGrantState.Pending ? "Waiting for the host result" : moneyState == StaffMoneyGrantState.Unknown ? "Verify the original request before closing" : "Close" )"
@@ -1524,14 +1528,14 @@
 						   content height stays present when the first click arms, so the second click keeps
 						   the same Confirm hit target without a guessed spacer height. *@
 						@if ( pending.Dispatch != StaffDispatchKind.GiveMoney
-						      && ( pending.Category == StaffMenuActions.CategoryModeration || ( _severeConfirm && requiredArgsComplete ) ) )
+						      && ( pending.Category == StaffMenuActions.CategoryModeration || IsToggleAction( pending ) || ( _severeConfirm && requiredArgsComplete ) ) )
 						{
 							<div class="grant-confirm">
 								@* The restatement is per-action: every Severe action (and Jail) restates what is about to run
 								   and on whom. The money grant's restatement lives INSIDE its status lane above, so it never
 								   adds height under the button; same .grant-confirm styling for both -- one seam, one look. *@
-								<span class="grant-confirm-line"><span class="grant-word-lead">Are you sure? Run</span><span class="grant-amount">@pending.Label</span><span class="grant-word-mid">on</span><span class="grant-target">@targetContext</span>?</span>
-								<span class="grant-confirm-sub">@( pending.Dispatch == StaffDispatchKind.LocalCommand ? "Double-click to toggle X-ray for yourself. Run it again to turn it off." : ( UsesDoubleClickConfirm( pending ) ? "Double-click to confirm. This executes for real on the live host and cannot be undone from this console." : "Confirm once more to run this action on the live host." ) )</span>
+								<span class="grant-confirm-line"><span class="grant-word-lead">Are you sure?</span><span class="grant-amount">@PendingActionPhrase( pending )</span><span class="grant-word-mid">on</span><span class="grant-target">@targetContext</span>?</span>
+								<span class="grant-confirm-sub">@ConfirmActionHint( pending )</span>
 							</div>
 						}
 
@@ -1543,7 +1547,7 @@
 							<button class="@( ConfirmButtonClasses( pending, formCanConfirm ) )"
 							        tooltip="@ConfirmButtonTooltip( pending, formCanConfirm )"
 							        onclick="@(() => ConfirmArgs( selected ))">
-								<i class="material-icons">@( _severeConfirm ? "warning" : "check" )</i> @( _severeConfirm ? ( pending.Dispatch == StaffDispatchKind.GiveMoney ? "Yes, give the money" : $"Yes, {pending.Label}" ) : $"Confirm {pending.Label}" )
+								<i class="material-icons">@( _severeConfirm ? "warning" : "check" )</i> @ConfirmButtonLabel( pending )
 							</button>
 						}
 					</div>
@@ -1778,6 +1782,7 @@
 	private long _moneyGrantTargetSteamId;
 	private string _moneyGrantTargetName = "";
 	private string _armedPayloadFingerprint = "";
+	private bool? _pendingToggleState;
 
 	// P3 + U2 + MONEY-1: the confirm gesture for the DOUBLE-CLICK SET is a second click
 	// inside this window (ruling U2 narrowed P3's uniform Severe gesture to the red class;
@@ -1838,18 +1843,115 @@
 		return _severeConfirm && IsRedAction( action ) ? "confirm-btn confirm-btn-danger" : "confirm-btn";
 	}
 
+	private static bool IsToggleAction( StaffAction action ) =>
+		action.Key is "god" or "cloak" or "incognito" or "noclip" or "freeze" or "xray";
+
+	private bool HasRequiredToggleState( StaffAction action ) =>
+		!IsToggleAction( action ) || action.Key == "xray" || _pendingToggleState.HasValue;
+
+	private static string ToggleStateLabel( bool? state ) => state switch
+	{
+		true => "On",
+		false => "Off",
+		_ => "Unavailable"
+	};
+
+	private bool? ReadPendingToggleState( StaffAction action ) =>
+		IsToggleAction( action )
+			? StaffMenuHost.GetCommandToggleState( action.Key,
+				action.TargetMode == StaffActionTarget.OtherPlayer ? _selectedSteamId ?? 0 : StaffMenuHost.LocalSteamId )
+			: null;
+
+	// Re-sample before each confirmation as well as on the normal live-state cadence.
+	// A direction change invalidates consent to the previous operation.
+	private bool RefreshPendingToggleState()
+	{
+		if ( _pendingAction is not { } action || !IsToggleAction( action ) )
+		{
+			return false;
+		}
+
+		var state = ReadPendingToggleState( action );
+		if ( state == _pendingToggleState )
+		{
+			return false;
+		}
+
+		_pendingToggleState = state;
+		InvalidateArmedConfirm();
+		StateHasChanged();
+		return true;
+	}
+
+	private string PendingActionLabel( StaffAction action )
+	{
+		if ( !IsToggleAction( action ) )
+		{
+			return action.Label;
+		}
+
+		if ( _pendingToggleState is not { } enabled )
+		{
+			return $"Toggle {action.Label}";
+		}
+
+		if ( action.Key == "freeze" )
+		{
+			return enabled ? "Unfreeze" : "Freeze";
+		}
+
+		return $"{(enabled ? "Disable" : "Enable")} {action.Label}";
+	}
+
+	private string PendingActionPhrase( StaffAction action ) =>
+		IsToggleAction( action ) ? PendingActionLabel( action ) : $"Run {action.Label}";
+
+	private string ConfirmButtonLabel( StaffAction action ) =>
+		IsToggleAction( action )
+			? ( _severeConfirm ? $"Yes, {PendingActionLabel( action )}" : PendingActionLabel( action ) )
+			: ( _severeConfirm ? ( action.Dispatch == StaffDispatchKind.GiveMoney ? "Yes, give the money" : $"Yes, {action.Label}" ) : $"Confirm {action.Label}" );
+
+	private string ConfirmActionHint( StaffAction action )
+	{
+		if ( !HasRequiredToggleState( action ) )
+		{
+			return "Waiting for the player's current state before confirming.";
+		}
+
+		if ( IsToggleAction( action ) )
+		{
+			return action.Key == "xray"
+				? "Double-click to switch X-ray between on and off."
+				: ( UsesDoubleClickConfirm( action ) ? "Double-click to confirm this change." : "Confirm this change." );
+		}
+
+		return UsesDoubleClickConfirm( action )
+			? "Double-click to confirm. This executes for real on the live host and cannot be undone from this console."
+			: "Confirm once more to run this action on the live host.";
+	}
+
 	private string ConfirmButtonTooltip( StaffAction action, bool requiredArgsComplete )
 	{
+		if ( !HasRequiredToggleState( action ) )
+		{
+			return "Current player state is unavailable";
+		}
+
 		if ( !requiredArgsComplete )
 		{
 			return "Complete the required fields before confirming";
 		}
 
+		if ( IsToggleAction( action ) )
+		{
+			return UsesDoubleClickConfirm( action )
+				? $"Double-click to confirm: {PendingActionLabel( action )}"
+				: $"Confirm: {PendingActionLabel( action )}";
+		}
+
 		if ( UsesDoubleClickConfirm( action ) )
 		{
-			return action.Dispatch == StaffDispatchKind.LocalCommand
-				? "Double-click to toggle X-ray on your client"
-				: "Double-click to confirm - this runs for real on the live host";
+			return "Double-click to confirm - this runs for real on the live host";
 		}
 
 		return _severeConfirm && RequiresArmedConfirm( action )
@@ -1946,6 +2048,7 @@
 		}
 
 		_sinceRefresh = 0;
+		RefreshPendingToggleState();
 		RecomputeDetailHash();
 		SyncHealthActionStyle();
 	}
@@ -2458,6 +2561,7 @@
 		}
 
 		_pendingAction = action;
+		_pendingToggleState = ReadPendingToggleState( action );
 		_moneyUnlockArmed = false;
 		InvalidateArmedConfirm();
 		_reason = "";
@@ -2485,6 +2589,7 @@
 		}
 
 		_pendingAction = null;
+		_pendingToggleState = null;
 		_moneyUnlockArmed = false;
 		InvalidateArmedConfirm();
 		_jobDropdownOpen = false;
@@ -2536,6 +2641,12 @@
 			return;
 		}
 
+		// Do not execute an operation whose displayed direction changed before this click.
+		if ( RefreshPendingToggleState() || !HasRequiredToggleState( action ) )
+		{
+			return;
+		}
+
 		var args = new Dictionary<string, string>();
 		foreach ( var arg in action.Args )
 		{
@@ -2561,7 +2672,7 @@
 		// the authority, exactly as before.
 		if ( RequiresArmedConfirm( action ) )
 		{
-			var currentPayloadFingerprint = BuildArmedPayloadFingerprint( action, selected, args );
+			var currentPayloadFingerprint = BuildArmedPayloadFingerprint( action, selected, args, _pendingToggleState );
 			if ( !_severeConfirm
 				|| !string.Equals( _armedPayloadFingerprint, currentPayloadFingerprint, StringComparison.Ordinal ) )
 			{
@@ -2602,7 +2713,8 @@
 	private static string BuildArmedPayloadFingerprint(
 		StaffAction action,
 		StaffMenuPlayer selected,
-		IReadOnlyDictionary<string, string> args )
+		IReadOnlyDictionary<string, string> args,
+		bool? toggleState )
 	{
 		var fingerprint = new System.Text.StringBuilder();
 		AppendFingerprintPart( fingerprint, action.Key );
@@ -2610,6 +2722,10 @@
 			? selected.SteamId
 			: StaffMenuHost.LocalSteamId;
 		AppendFingerprintPart( fingerprint, targetSteamId.ToString( System.Globalization.CultureInfo.InvariantCulture ) );
+		if ( IsToggleAction( action ) )
+		{
+			AppendFingerprintPart( fingerprint, ToggleStateLabel( toggleState ) );
+		}
 
 		foreach ( var arg in action.Args )
 		{
@@ -3959,7 +4075,7 @@
 				HashCode.Combine( _selectedSteamId, _profileSteamId, _showProfile, _searchText ),
 				HashCode.Combine( _rosterHash, _playersCollapsed, _staffSectionCollapsed, _playersSectionCollapsed ),
 				_activeTab,
-				_pendingAction?.Key,
+				HashCode.Combine( _pendingAction?.Key, _pendingToggleState ),
 				HashCode.Combine( _destination, _severeConfirm, StaffMenuHost.MoneyGrantVersion,
 					(int)StaffMenuHost.MoneyGrantState, StaffMenuHost.MoneyGrantMessage ),
 				HashCode.Combine( _reason, _duration, _amount, _name, _job, _jobFilter, _jobDropdownOpen, _jobScrollAtEnd ),
