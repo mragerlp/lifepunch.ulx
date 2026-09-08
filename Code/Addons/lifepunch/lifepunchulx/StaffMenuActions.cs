@@ -266,9 +266,10 @@ public static class StaffMenuActions
 			NoArgs, "flight", "Toggle noclip flight" ),
 
 		// Each server owner grants this capability to their trusted staff ranks.
+		// X-ray shares the Frozen palette; this display tone does not imply a native status.
 		new( "xray", "X-ray", CategoryAbility, "command.xray",
 			StaffDispatchKind.LocalCommand, "xray", StaffActionTarget.SelfOnly, StaffActionSeverity.Severe,
-			NoArgs, "xray", "Toggle X-ray for yourself" )
+			NoArgs, "xray", "Toggle X-ray for yourself", StaffActionDisplayTone.Freeze )
 	};
 }
 

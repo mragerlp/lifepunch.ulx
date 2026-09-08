@@ -1797,12 +1797,12 @@
 		action.Severity == StaffActionSeverity.Severe
 		&& action.DisplayTone == StaffActionDisplayTone.Severity;
 
-	// Confirmation membership includes Moderation, the red class, money and the native-tone severe actions.
+	// Confirmation membership includes Moderation, the red class, money and severe actions with separate colors.
 	// Category membership changes the gesture only; IsRedAction keeps tone semantics intact.
 	private static bool UsesDoubleClickConfirm( StaffAction action ) =>
 		action.Category == StaffMenuActions.CategoryModeration
 		|| IsRedAction( action ) || action.Dispatch == StaffDispatchKind.GiveMoney
-		|| action.Key == "setarmor" || action.Key == "freeze" || action.Key == "sethealth";
+		|| action.Key == "setarmor" || action.Key == "freeze" || action.Key == "sethealth" || action.Key == "xray";
 
 	// Every timed action must enter the armed form, including Moderation without arguments.
 	private static bool RequiresArmedConfirm( StaffAction action ) =>
