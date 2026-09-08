@@ -19,6 +19,12 @@ $surface-raised: #272829;
 $border: #343536;
 $text: #e4e6e8;
 $muted: #8d8f90;
+$setjob-form-gap: 4px;
+$setjob-form-bottom-padding: 16px;
+$money-amount-width: 180px;
+$money-reason-height: 64px;
+$money-reason-spacing: 4px;
+$money-form-bottom-padding: 16px;
 
 	// Four accents, four fixed roles, each present at rest and small in area:
 	//   blue = light / interactive   green = cash / positive
@@ -918,6 +924,12 @@ $tone-gold: #a16207;
 		background-color: $surface;
 	}
 
+	// Keep a small inset above the footer when the Set Job picker is expanded.
+	.arg-form-setjob {
+		gap: $setjob-form-gap;
+		padding-bottom: $setjob-form-bottom-padding;
+	}
+
 	.arg-form-head {
 		align-items: center;
 		justify-content: space-between;
@@ -988,26 +1000,47 @@ $tone-gold: #a16207;
 		flex-shrink: 0;
 	}
 
+	// Size the number field for digits and give the explanation a short paragraph box.
+	.money-amount-controls {
+		flex-direction: row;
+		align-items: center;
+		gap: 10px;
+	}
+
+	.money-amount-presets {
+		align-items: center;
+	}
+
+	.arg-input-money-amount {
+		width: $money-amount-width;
+		flex-shrink: 0;
+	}
+
 	.arg-row-money-reason {
-		gap: 8px;
+		gap: $money-reason-spacing;
 		margin-top: 4px;
 	}
 
 	.arg-input-money-reason {
-		height: 52px;
-		min-height: 52px;
-		max-height: 52px;
-		padding: 8px 9px;
+		width: 100%;
+		align-self: flex-start;
+		height: $money-reason-height;
+		min-height: $money-reason-height;
+		max-height: $money-reason-height;
+		padding: $money-reason-spacing 9px;
 	}
 
 	.arg-form-money > .confirm-btn,
 	.arg-form-money > .confirm-btn-inert {
-		margin-top: 8px;
+		margin-top: 4px;
 	}
 
 	.arg-form-money {
+		flex-grow: 1;
 		flex-shrink: 1;
 		min-height: 0;
+		margin-bottom: 0;
+		padding-bottom: $money-form-bottom-padding;
 		overflow-y: scroll;
 	}
 
@@ -1069,21 +1102,18 @@ $tone-gold: #a16207;
 		color: $muted;
 	}
 
-	// SETJOB polish -- the open shell is ONE fixed box: filter 30 + gap 3 + list box (4 x 30px rows
-	// + 8px end clearance + 8px chrome = 136 at most) + gap 3 + cue lane 12 = 184px, i.e. +2px on
-	// HEAD's worst case (182 with the cue showing), so the pane-level fit R9-SETJOB trimmed for is kept:
-	// at frozen XL .main is ~540 and .actions offers 516; target card ~90 + arg-form ~395 (chrome 38,
-	// head 35, label 16 + 6 + header 35 + 5 + shell 184, hint 14, confirm 38, three 8px gaps) = ~485.
-	// Typing swaps rows inside the shell and can never move Confirm. The filter is OUTSIDE the list
-	// box; the list box hugs its rows (one result = one row) and scrolls only past four. overflow
-	// hidden so an over-measured child can never spill over the Confirm gap; nothing designed exceeds 184.
+	// Fixed shell keeps Confirm stationary across zero, one and many search results.
+	// Authored content needs 30 + 3 + 136 + 3 + 18 = 190px. The measured native
+	// pre-cue span is 305 physical pixels at 1.75 scale, or 174.286 logical pixels;
+	// adding the 18px cue needs 192.286px. Reserve 194px to contain native rounding.
+	// Filter, four-row viewport and end clearance retain their existing sizes.
 	.job-dropdown-shell {
 		flex-direction: column;
 		flex-shrink: 0;
 		gap: 3px;
-		height: 184px;
-		min-height: 184px;
-		max-height: 184px;
+		height: 194px;
+		min-height: 194px;
+		max-height: 194px;
 		overflow: hidden;
 	}
 
@@ -1163,15 +1193,29 @@ $tone-gold: #a16207;
 		justify-content: flex-end;
 		flex-shrink: 0;
 		gap: 4px;
-		height: 12px;
-		min-height: 12px;
-		max-height: 12px;
+		padding-right: 4px;
+		height: 18px;
+		min-height: 18px;
+		max-height: 18px;
 		color: $muted;
 		font-size: 11px;
 	}
 
 	.job-scroll-cue .material-icons {
 		font-size: 14px;
+		line-height: 1;
+	}
+
+	// The explicit label outranks the generic argument-row label typography.
+	.job-scroll-cue .job-scroll-cue-text {
+		flex-shrink: 0;
+		height: 14px;
+		min-height: 14px;
+		max-height: 14px;
+		color: $muted;
+		font-size: 11px;
+		line-height: 1.25;
+		white-space: nowrap;
 	}
 
 	.confirm-btn {
@@ -1637,6 +1681,15 @@ $tone-gold: #a16207;
 		color: $muted;
 	}
 
+	.pocket-slot-fallback {
+		flex-shrink: 0;
+		width: 24px;
+		height: 24px;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+	}
+
 	.pocket-slot .material-icons {
 		font-size: 20px;
 		color: $blue;
@@ -1656,7 +1709,9 @@ $tone-gold: #a16207;
 	}
 
 	.pocket-slot-label {
+		width: 100%;
 		max-width: 100%;
+		justify-content: center;
 		font-size: 12px;
 		text-align: center;
 		white-space: nowrap;
@@ -1859,6 +1914,7 @@ $tone-gold: #a16207;
 	.grant-status-lane {
 		flex-direction: column;
 		justify-content: center;
+		flex-grow: 1;
 		flex-shrink: 0;
 		min-height: 56px;
 	}
@@ -1894,15 +1950,14 @@ $tone-gold: #a16207;
 		overflow: scroll;
 	}
 
-	// The terminal exit after a successful grant: a .confirm-btn in the cash role, so it reads as the
-	// one primary action left on the form.
+	// The successful receipt keeps its success tone; the terminal Close action uses the close role.
 	.grant-close-btn {
-		border-color: rgba($success, 0.55);
-		background-color: rgba($success, 0.18);
+		border-color: rgba($danger, 0.55);
+		background-color: rgba($danger, 0.18);
 	}
 
 	.grant-close-btn:hover {
-		background-color: rgba($success, 0.30);
+		background-color: rgba($danger, 0.30);
 	}
 
 	// 16a -- three escalation cards in one row, destructive in role because every one of them
@@ -2063,12 +2118,6 @@ $tone-gold: #a16207;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-	}
-
-	// The Steam ID cell is a row of controls, not text -- keep it visible; its digits already refuse to
-	// wrap (see .steamid-value below).
-	.profile-rows .v-copy {
-		overflow: visible;
 	}
 
 	// The footer LANE: equal, centred, fixed height in every column, emitted whether or not the
@@ -2329,27 +2378,7 @@ $tone-gold: #a16207;
 		background-color: rgba($blue, 0.08);
 	}
 
-	// 16g -- STEAM ID OVERFLOW. A SteamID64 is 17 unbroken digits; at the .field
-	// defaults (12px gap, 10px side padding, 13px value) they ran the identity
-	// column out of width with the sidebar EXPANDED and the value wrapped or
-	// clipped. The row gives up spacing before the number gives up a digit: gap
-	// and side padding tighten, and the value takes the 12px this sheet already
-	// uses for a SteamID on .target-steamid. .k keeps its default shrink, so the
-	// LABEL is what yields if the row is ever squeezed again.
-	.steamid-field {
-		gap: 6px;
-		padding-left: 6px;
-		padding-right: 6px;
-	}
-
-	.steamid-field .v-copy {
-		flex: 1 0 auto;
-		gap: 5px;
-	}
-
-	// flex-shrink: 0 with nowrap is the guarantee -- the digits are never
-	// compressed, wrapped or truncated. The copy button keeps the flex-shrink: 0
-	// it already carries above and stays adjacent.
+	// The clickable Steam ID uses the same value edge and row padding as its neighbors.
 	.steamid-value {
 		align-items: center;
 		flex-shrink: 0;
@@ -2359,6 +2388,16 @@ $tone-gold: #a16207;
 		color: inherit;
 		white-space: nowrap;
 		font-size: 12px;
+		justify-content: flex-end;
+		cursor: pointer;
+	}
+
+	.profile-stat-value {
+		align-items: center;
+		justify-content: flex-end;
+		padding: 0;
+		border: 0;
+		background-color: transparent;
 		cursor: pointer;
 	}
 
@@ -3340,7 +3379,8 @@ $tone-gold: #a16207;
 	}
 
 	// ---- OPUS-ULX-SETTINGS-2: Appearance card ----
-	.accent-actions > .settings-btn {
+	.accent-actions > .settings-btn,
+	.accent-secondary-actions > .settings-btn {
 		flex-direction: row;
 		flex-shrink: 0;
 		min-height: 44px;
@@ -3350,12 +3390,11 @@ $tone-gold: #a16207;
 		white-space: nowrap;
 	}
 
-	// The larger native palette and summary share the existing Appearance card interior.
-	// Stretch the summary into the available height so its actions can sit at the lower right.
-	// The 176px square retains the current hue strip and hidden alpha control; verify the fit in-engine.
+	// Actions, preview summary and the native palette share the existing card interior.
+	// Keep the outer Settings columns and card rules unchanged; verify the fit in-engine.
 	.accent-palette {
 		flex-direction: row;
-		align-items: stretch;
+		align-items: center;
 		flex: 1 1 auto;
 		min-height: 0;
 		gap: 16px;
@@ -3365,7 +3404,7 @@ $tone-gold: #a16207;
 	.accent-picker-inline {
 		flex-direction: column;
 		flex-shrink: 0;
-		width: 176px;
+		width: 184px;
 		min-height: 0;
 	}
 
@@ -3375,12 +3414,12 @@ $tone-gold: #a16207;
 	}
 
 	.accent-picker-inline ColorSaturationValueControl {
-		width: 176px;
-		height: 176px;
+		width: 184px;
+		height: 184px;
 	}
 
 	.accent-picker-inline ColorHueControl {
-		margin: 6px 0;
+		margin: 4px 0 0;
 	}
 
 	.accent-picker-inline ColorAlphaControl {
@@ -3445,12 +3484,37 @@ $tone-gold: #a16207;
 	}
 
 	.accent-actions {
+		flex-direction: column;
+		align-items: stretch;
+		align-self: center;
+		flex-shrink: 0;
+		width: 232px;
+		gap: 8px;
+	}
+
+	.accent-secondary-actions {
 		flex-direction: row;
-		flex-wrap: nowrap;
-		justify-content: flex-end;
 		flex-shrink: 0;
 		gap: 12px;
-		margin-top: auto;
+	}
+
+	.accent-secondary-actions > .settings-btn {
+		flex: 1 1 0;
+		min-width: 0;
+	}
+
+	.accent-copy-value {
+		align-items: center;
+		justify-content: flex-start;
+		min-width: 0;
+		padding: 0;
+		border: 0;
+		background-color: transparent;
+		cursor: pointer;
+	}
+
+	.accent-copy-value:hover .accent-state-value {
+		color: $blue-highlight;
 	}
 
 	.accent-apply {

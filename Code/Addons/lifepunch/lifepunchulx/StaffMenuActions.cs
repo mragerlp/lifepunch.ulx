@@ -89,8 +89,8 @@ public sealed record StaffActionArg(
 /// <summary>
 /// One entry in the staff command catalog (ULX-style, built clean as data). References DXRP only by
 /// stable permission Id string + dispatch target name — never a Dxura type — so it compiles in the
-/// standalone editor build. Permission Ids reconcile 1:1 with the live DXRP portal and
-/// <c>admin-panel/permissions/*.json</c>.
+/// standalone editor build. Built-in permission IDs follow DXRP; addon commands declare their
+/// own string IDs, whose rank grants are configured separately.
 /// </summary>
 public sealed record StaffAction(
 	string Key,
@@ -111,7 +111,7 @@ public sealed record StaffAction(
 /// (Moderation / Commands / Ability). Growing the menu = adding rows here.
 /// Chat-only commands stay out of <see cref="All"/>; job force-set is menu-only via Set Job below
 /// (still dispatches to DXRP <c>/job</c> — portal <c>command.job.manage</c>).
-/// Catalog reconciled against the live portal Super Admin permission set (2026-06).
+/// Built-in catalog reconciled against the portal Super Admin permission set (2026-06).
 /// </summary>
 public static class StaffMenuActions
 {
@@ -188,6 +188,11 @@ public static class StaffMenuActions
 		new( "sethealth", "Set Health", CategoryCommands, "command.sethealth",
 			StaffDispatchKind.ChatCommand, "sethealth", StaffActionTarget.OtherPlayer, StaffActionSeverity.Severe,
 			new[] { new StaffActionArg( "amount", "Health", StaffArgKind.Number, true, "e.g. 100" ) }, "favorite", "Set player's health" ),
+
+		// Addon-defined permission; granting Set Health does not grant Set Armor.
+		new( "setarmor", "Set Armor", CategoryCommands, "command.setarmor",
+			StaffDispatchKind.ChatCommand, "setarmor", StaffActionTarget.OtherPlayer, StaffActionSeverity.Severe,
+			new[] { new StaffActionArg( "amount", "Armor", StaffArgKind.Number, true, "e.g. 100; 0 clears armor" ) }, "shield", "Set player's armor within the server limit" ),
 
 		new( "setjob", "Set Job", CategoryCommands, "command.job.manage",
 			StaffDispatchKind.ChatCommand, "job", StaffActionTarget.OtherPlayer, StaffActionSeverity.Light,

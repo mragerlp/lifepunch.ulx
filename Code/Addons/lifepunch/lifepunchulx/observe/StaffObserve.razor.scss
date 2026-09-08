@@ -18,6 +18,9 @@
 // Shared classes reused from the shell sheet, not redefined here: .lp-ui-scroll-region,
 // .flag-chip / .flag-illegit, and the .action-pill-* tone family.
 
+// NW-05: principal-requested Ranks accent; rank data colors retain their own meaning.
+$observe-ranks-accent: hotpink;
+
 .lifepunchulx {
 	.observe {
 		flex-direction: column;
@@ -137,6 +140,12 @@
 		color: #e4e6e8;
 	}
 
+	.observe-tab-selected-ranks,
+	.observe-tab-selected-ranks:hover {
+		border-color: $observe-ranks-accent;
+		color: $observe-ranks-accent;
+	}
+
 	// The pane itself never scrolls. Each populated collection owns a local list below, which
 	// keeps section heads, hints, filters and overflow denominators visible while rows move.
 	.observe-body,
@@ -167,12 +176,6 @@
 		letter-spacing: 1px;
 		padding: 14px 0 4px 0;
 		flex-shrink: 0;
-	}
-
-	// Sub-head INSIDE the unified sanctions view (staff actions this boot): quieter than the block head.
-	.observe-section-head-sub {
-		font-size: 11px;
-		padding: 8px 0 2px 0;
 	}
 
 	.observe-hint {
@@ -226,23 +229,6 @@
 		color: #d99a3f;
 		padding: 4px 0;
 		flex-shrink: 0;
-	}
-
-	// A caveat that states a plumbing fact (no lifetime source yet), not a warning: muted, not amber.
-	.observe-caveat-muted {
-		color: #8d8f90;
-	}
-
-	// Staff actions this boot, inside the unified sanctions view: a CONTENT-SIZED local scroller (about
-	// five 24px .event-row floors plus the 26px tail before it scrolls), so the sanction table stays the
-	// block's only grower and one ring row never claims half the pane. Rows are the shell sheet's
-	// .event-row family; .observe-list still supplies min-height: 0 and overflow-y: scroll.
-	.observe-staff-acts {
-		flex: 0 1 auto;
-		max-height: 146px;
-		background-color: #111214;
-		border: 1px solid #343536;
-		border-radius: 6px;
 	}
 
 	.observe-overflow {

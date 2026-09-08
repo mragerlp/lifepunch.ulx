@@ -34,7 +34,7 @@
 			<i class="material-icons">gavel</i>
 			<span class="observe-title">Sanctions</span>
 			<span class="observe-badge">Read-only</span>
-			<span class="observe-sub">One player's history and this boot's staff actions. Issuing stays in Moderation; the Portal is authoritative.</span>
+			<span class="observe-sub">One player's sanction history.</span>
 		</div>
 	}
 	else
@@ -439,8 +439,8 @@
 				}
 				<div class="observe-sanctions-overview">
 					<div class="observe-sanctions-intro">
-						<div class="observe-section-head">Sanctions management</div>
-						<div class="observe-hint">Review one player's history here, open Moderation to issue a sanction, and use the Portal for issuer detail, appeal decisions or pardons.</div>
+						<div class="observe-section-head">Sanction history</div>
+						<div class="observe-hint">Issue sanctions in Moderation. The Portal is authoritative for issuer details, appeals and pardons.</div>
 					</div>
 					<div class="observe-sanctions-badges">
 						<span class="observe-history-badge">History only</span>
@@ -479,7 +479,6 @@
 						<span>@( _portalLinkCopied ? "Portal link copied" : "Copy Portal link" )</span>
 					</button>
 				</div>
-				<div class="observe-caveat">This pane never changes a record. The Portal remains authoritative for issuer details, appeal status, and pardons.</div>
 				@if ( _sanctionsSubjectId == 0 )
 				{
 					var subjectMatches = SanctionsSubjectMatches();
@@ -633,51 +632,6 @@
 						<div class="observe-empty">The sanction read returned an unknown state, so no record claim can be made.</div>
 					}
 
-					@* STAFF ACTIONS THIS BOOT -- carried over from the retired StaffMenu sanctions list so the one
-					   renderer holds everything the profile route used to show. Same host audit ring the Audit tab
-					   reads; the limitation is stated on the surface, not implied away. Row shape is the shell
-					   sheet's .event-row family. *@
-					<div class="observe-section-head observe-section-head-sub">Staff actions this boot</div>
-					<div class="observe-caveat">Host audit ring only: this boot, newest 500 rows, matched by SteamID inside each action's description. Not lifetime history -- the Portal holds the record.</div>
-					@if ( !StaffMenuHost.CanViewAudit() )
-					{
-						<div class="observe-empty">You do not have permission to view audit activity.</div>
-					}
-					else if ( !StaffObserveHost.RingLivesHere )
-					{
-						<div class="observe-empty">@StaffObserveHost.RingUnavailableText</div>
-					}
-					else
-					{
-						var staffActs = StaffMenuHost.GetAuditEntries( _sanctionsSubjectId.ToString(), "", false,
-							StaffActionTaxonomy.SanctionActionNames, AuditPlayerScope.Target );
-						@if ( staffActs.Count == 0 )
-						{
-							@if ( sanctionState == SanctionsReadState.CompletedEmpty )
-							{
-								<div class="observe-empty">No sanctions or staff actions recorded against this player this boot.</div>
-							}
-						}
-						else
-						{
-							<div class="lp-ui-scroll-region observe-list observe-staff-acts">
-							@foreach ( var entry in staffActs.Take( StaffActsCap ) )
-							{
-								<div class="event-row">
-									<span class="event-when">@entry.When</span>
-									<span class="event-act"><span class="@ActionPillClass( entry.Action )">@PresentAuditText( entry.Action )</span></span>
-									<span class="event-what">@PresentAuditText( entry.Description )</span>
-								</div>
-							}
-								<div class="observe-list-tail"></div>
-							</div>
-							@if ( staffActs.Count > StaffActsCap )
-							{
-								<div class="observe-overflow">@( $"Showing the newest {StaffActsCap} of {staffActs.Count} this boot -- the Audit tab reaches the rest." )</div>
-							}
-						}
-					}
-					<div class="observe-caveat observe-caveat-muted">Lifetime staff actions: no data source is wired yet -- the ring holds only this boot and the portal read-back is unbound. Nothing here is simulated.</div>
 				}
 			</div>
 		</div>
@@ -825,28 +779,6 @@
 		StateHasChanged();
 	}
 
-	// Newest-first cap for the staff-actions list, disclosed on the surface when exceeded.
-	private const int StaffActsCap = 12;
-
-	// Presentation only (same helper the shell razor carries): localize #tokens in ring text;
-	// raw keys stay untouched for filtering, counts, and storage.
-	private static string PresentAuditText( string text )
-	{
-		if ( string.IsNullOrWhiteSpace( text ) || !text.Contains( '#' ) )
-		{
-			return text;
-		}
-
-		return System.Text.RegularExpressions.Regex.Replace( text, @"#[A-Za-z0-9._-]+", match =>
-		{
-			var key = match.Value[1..];
-			var localized = StaffMenuHost.Localize( key );
-			return string.IsNullOrWhiteSpace( localized ) || localized == key || localized == match.Value
-				? match.Value
-				: localized;
-		} );
-	}
-
 	// Live-data snapshot hash on a fixed cadence, mirroring the shell's throttle pattern:
 	// folding raw reads into BuildHash every frame would re-run permission scans per player
 	// per frame and rebuild the panel continuously.
@@ -912,9 +844,7 @@
 		else if ( ActiveView == ObserveView.Sanctions )
 		{
 			var canViewSanctions = StaffMenuHost.CanViewSanctions( _sanctionsSubjectId );
-			// CanViewAudit gates the staff-actions block of the unified view, so it is sampled here on the
-			// same one-second permission cadence the shell's tab guard uses.
-			hash = HashCode.Combine( hash, _sanctionsSubjectId, canViewSanctions, StaffMenuHost.CanViewAudit(),
+			hash = HashCode.Combine( hash, _sanctionsSubjectId, canViewSanctions,
 				_sanctionsSearchText, _sanctionsTypeFilter, _portalLinkCopied );
 
 			if ( canViewSanctions && _sanctionsSubjectId != 0 )
@@ -1203,6 +1133,7 @@
 		if ( view == ObserveView.Economy ) return "observe-tab-selected-economy";
 		if ( view == ObserveView.Staff ) return "observe-tab-selected-staff";
 		if ( view == ObserveView.Sanctions ) return "observe-tab-selected-sanctions";
+		if ( view == ObserveView.Ranks ) return "observe-tab-selected-ranks";
 		return "observe-tab-selected-neutral";
 	}
 
