@@ -174,7 +174,7 @@ public static class StaffMenuActions
 		// ---- Commands ----
 		new( "god", "God Mode", CategoryCommands, "command.god",
 			StaffDispatchKind.ChatCommand, "god", StaffActionTarget.SelfOnly, StaffActionSeverity.Severe,
-			NoArgs, "shield", "Toggle god mode" ),
+			NoArgs, "volunteer_activism", "Toggle god mode" ),
 
 		new( "cloak", "Cloak", CategoryCommands, "command.cloak",
 			StaffDispatchKind.ChatCommand, "cloak", StaffActionTarget.SelfOnly, StaffActionSeverity.Light,
@@ -182,7 +182,7 @@ public static class StaffMenuActions
 
 		new( "incognito", "Incognito", CategoryCommands, "command.incognito",
 			StaffDispatchKind.ChatCommand, "incognito", StaffActionTarget.SelfOnly, StaffActionSeverity.Light,
-			NoArgs, "person_off", "Hide from player list" ),
+			NoArgs, "do_not_disturb_on_total_silence", "Hide from player list" ),
 
 		new( "fakedisconnect", "Fake Disconnect", CategoryCommands, "command.fakedisconnect",
 			StaffDispatchKind.ChatCommand, "fakedisconnect", StaffActionTarget.SelfOnly, StaffActionSeverity.Light,
