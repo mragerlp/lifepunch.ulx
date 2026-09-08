@@ -703,6 +703,20 @@ internal static class StaffMenuHost
 #endif
 	}
 
+
+	/// <summary>Selected player's native HUD health color, including the HUD's upward rounding.</summary>
+	public static string PlayerHealthColorHex( long steamId )
+	{
+#if !LIFEPUNCH_LOCAL
+		var player = GameUtils.Players.FirstOrDefault( x => x.IsValid() && x.SteamId == steamId );
+		if ( player.IsValid() && player.HealthComponent.IsValid() )
+		{
+			return HealthColorHex( player.HealthComponent.Health.CeilToInt(), player.HealthComponent.MaxHealth.CeilToInt() );
+		}
+#endif
+		return "";
+	}
+
 	// --- Sanction history (real DXRP source, not a stub) ------------------
 	// Backed by PlayerSanctionHistorySystem, the same system DXRP's own
 	// UI/Menus/TabMenu/Sections/Components/PlayerSanctionHistory.razor consumes.

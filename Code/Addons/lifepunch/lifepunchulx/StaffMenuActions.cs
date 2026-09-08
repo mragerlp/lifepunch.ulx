@@ -42,7 +42,8 @@ public enum StaffActionDisplayTone
 	Money,
 	Armor,
 	Cloak,
-	Freeze
+	Freeze,
+	Health
 }
 
 /// <summary>
@@ -193,7 +194,7 @@ public static class StaffMenuActions
 
 		new( "sethealth", "Set Health", CategoryCommands, "command.sethealth",
 			StaffDispatchKind.ChatCommand, "sethealth", StaffActionTarget.OtherPlayer, StaffActionSeverity.Severe,
-			new[] { new StaffActionArg( "amount", "Health", StaffArgKind.Number, true, "e.g. 100" ) }, "favorite", "Set player's health" ),
+			new[] { new StaffActionArg( "amount", "Health", StaffArgKind.Number, true, "e.g. 100" ) }, "favorite", "Set player's health", StaffActionDisplayTone.Health ),
 
 		// Addon-defined permission; granting Set Health does not grant Set Armor.
 		new( "setarmor", "Set Armor", CategoryCommands, "command.setarmor",

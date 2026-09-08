@@ -1797,12 +1797,12 @@
 		action.Severity == StaffActionSeverity.Severe
 		&& action.DisplayTone == StaffActionDisplayTone.Severity;
 
-	// Confirmation membership includes Moderation, the red class, money, Set Armor and Freeze.
+	// Confirmation membership includes Moderation, the red class, money and the native-tone severe actions.
 	// Category membership changes the gesture only; IsRedAction keeps tone semantics intact.
 	private static bool UsesDoubleClickConfirm( StaffAction action ) =>
 		action.Category == StaffMenuActions.CategoryModeration
 		|| IsRedAction( action ) || action.Dispatch == StaffDispatchKind.GiveMoney
-		|| action.Key == "setarmor" || action.Key == "freeze";
+		|| action.Key == "setarmor" || action.Key == "freeze" || action.Key == "sethealth";
 
 	// Every timed action must enter the armed form, including Moderation without arguments.
 	private static bool RequiresArmedConfirm( StaffAction action ) =>
@@ -1828,6 +1828,11 @@
 		if ( _severeConfirm && action.DisplayTone == StaffActionDisplayTone.Freeze )
 		{
 			return "confirm-btn confirm-btn-freeze";
+		}
+
+		if ( _severeConfirm && action.DisplayTone == StaffActionDisplayTone.Health )
+		{
+			return "confirm-btn confirm-btn-health";
 		}
 
 		return _severeConfirm && IsRedAction( action ) ? "confirm-btn confirm-btn-danger" : "confirm-btn";
@@ -1894,6 +1899,7 @@
 
 	protected override void OnDisabled()
 	{
+		SetHealthActionStyle( "" );
 		ResetPocketModal();
 		ResetInventoryModal();
 		LifePunchMenuInputBlock.NotifyMenuClosed();
@@ -1941,6 +1947,7 @@
 
 		_sinceRefresh = 0;
 		RecomputeDetailHash();
+		SyncHealthActionStyle();
 	}
 
 	private void RefreshRoster()
@@ -2100,6 +2107,10 @@
 		else if ( action.DisplayTone == StaffActionDisplayTone.Freeze )
 		{
 			classes += " action-tone-freeze";
+		}
+		else if ( enabled && action.DisplayTone == StaffActionDisplayTone.Health )
+		{
+			classes += " action-tone-health";
 		}
 
 		// Read from the host, never from a local click flag -- a click echo would desync from the
@@ -3715,8 +3726,54 @@
 			: $"{(int)elapsed.TotalHours}h {elapsed.Minutes}m";
 	}
 
+
+	// Keep hover colors in a stylesheet so the custom resting accent cannot shadow them.
+	// Update on the existing stats cadence, and replace by instance to avoid accumulating sheets.
+	private StyleSheet _healthActionSheet;
+	private string _healthActionHex = "";
+
+	private void SyncHealthActionStyle()
+	{
+		var nativeHex = _selectedSteamId is { } sid && sid != 0
+			? StaffMenuHost.PlayerHealthColorHex( sid )
+			: "";
+		SetHealthActionStyle( TryNormalizeAccentHex( nativeHex, out var hex ) ? hex : "" );
+	}
+
+	private void SetHealthActionStyle( string hex )
+	{
+		if ( Panel is null || hex == _healthActionHex )
+		{
+			return;
+		}
+
+		_healthActionHex = hex;
+		if ( _healthActionSheet is not null )
+		{
+			Panel.StyleSheet.Remove( _healthActionSheet );
+			_healthActionSheet = null;
+		}
+
+		if ( hex.Length > 0 )
+		{
+			var rgb = $"{Convert.ToInt32( hex.Substring( 1, 2 ), 16 )}, {Convert.ToInt32( hex.Substring( 3, 2 ), 16 )}, {Convert.ToInt32( hex.Substring( 5, 2 ), 16 )}";
+			var css =
+				$".health-action-colors .action-tone-health:hover {{ border-color: rgba({rgb}, 0.68); background-color: rgba({rgb}, 0.18); }}\n" +
+				$".health-action-colors .action-tone-health:hover .material-icons {{ color: {hex}; }}\n" +
+				$".health-action-colors .action-tone-health:active {{ border-color: {hex}; background-color: rgba({rgb}, 0.26); }}\n" +
+				$".health-action-colors .confirm-btn-health {{ border-color: {hex}; background-color: rgba({rgb}, 0.30); }}\n" +
+				$".health-action-colors .confirm-btn-health:hover {{ background-color: rgba({rgb}, 0.44); }}";
+			_healthActionSheet = StyleSheet.FromString( css, "ulx-health-action-colors" );
+			Panel.StyleSheet.Add( _healthActionSheet );
+		}
+
+		// Adding/removing a sheet needs a selector change to rematch existing descendants.
+		Panel.RemoveClass( "health-action-colors" );
+		Panel.AddClass( "health-action-colors" );
+	}
+
 	private string GetRootClass() =>
-		$"lifepunchulx ulx-v2 {LifePunchUiScale.CssClass( FrozenUiScale )}";
+		$"lifepunchulx ulx-v2 health-action-colors {LifePunchUiScale.CssClass( FrozenUiScale )}";
 
 	/// <summary>Waypoint list filter -- typing in the bar narrows visible rows (Go/Set still use the typed name).</summary>
 	private List<string> FilteredWaypoints( IReadOnlyList<string> waypoints )
