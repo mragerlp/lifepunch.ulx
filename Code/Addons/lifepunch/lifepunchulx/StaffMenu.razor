@@ -3758,11 +3758,11 @@
 		{
 			var rgb = $"{Convert.ToInt32( hex.Substring( 1, 2 ), 16 )}, {Convert.ToInt32( hex.Substring( 3, 2 ), 16 )}, {Convert.ToInt32( hex.Substring( 5, 2 ), 16 )}";
 			var css =
-				$".health-action-colors .action-tone-health:hover {{ border-color: rgba({rgb}, 0.68); background-color: rgba({rgb}, 0.18); }}\n" +
-				$".health-action-colors .action-tone-health:hover .material-icons {{ color: {hex}; }}\n" +
-				$".health-action-colors .action-tone-health:active {{ border-color: {hex}; background-color: rgba({rgb}, 0.26); }}\n" +
-				$".health-action-colors .confirm-btn-health {{ border-color: {hex}; background-color: rgba({rgb}, 0.30); }}\n" +
-				$".health-action-colors .confirm-btn-health:hover {{ background-color: rgba({rgb}, 0.44); }}";
+				$".health-action-colors .action-grid .action-tone-health:hover {{ border-color: rgba({rgb}, 0.68); background-color: rgba({rgb}, 0.18); }}\n" +
+				$".health-action-colors .action-grid .action-tone-health:hover .material-icons {{ color: {hex}; }}\n" +
+				$".health-action-colors .action-grid .action-tone-health:active {{ border-color: {hex}; background-color: rgba({rgb}, 0.26); }}\n" +
+				$".health-action-colors .arg-form .confirm-btn-health {{ border-color: {hex}; background-color: rgba({rgb}, 0.30); }}\n" +
+				$".health-action-colors .arg-form .confirm-btn-health:hover {{ background-color: rgba({rgb}, 0.44); }}";
 			_healthActionSheet = StyleSheet.FromString( css, "ulx-health-action-colors" );
 			Panel.StyleSheet.Add( _healthActionSheet );
 		}
