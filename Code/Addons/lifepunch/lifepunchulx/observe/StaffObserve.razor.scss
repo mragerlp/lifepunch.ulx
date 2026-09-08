@@ -94,54 +94,63 @@ $observe-ranks-accent: hotpink;
 		.material-icons {
 			font-size: 15px;
 		}
-
-		&:hover {
-			background-color: #272829;
-			color: #e4e6e8;
-		}
 	}
 
-	// Selection is neutral by default. Semantic warning/danger paint is opt-in through the
-	// per-view classes emitted by ViewClass(), so inserting or reordering a tab cannot move a
-	// meaning to the wrong destination. The hover arms keep selected paint stable under the
-	// cursor without relying on source order.
-	.observe-tab-selected,
-	.observe-tab-selected:hover {
+	// Selection keeps white text and a category outline. Hover adds category color
+	// to the fill, icon and label, whether the tab is selected or not.
+	.observe-tab-selected {
 		background-color: #272829;
-		border: 1px solid #343536;
 		color: #e4e6e8;
 	}
 
-	.observe-tab-selected-staff,
-	.observe-tab-selected-staff:hover {
-		background-color: #1d4b78;
-		border: 1px solid #1689ff;
-		color: #e4e6e8;
+	.observe-tab-selected-staff {
+		border-color: #1689ff;
 	}
 
-	.observe-tab-selected-economy,
-	.observe-tab-selected-economy:hover {
-		background-color: #272829;
-		border: 1px solid #199c3b;
+	.observe-tab-selected-economy {
+		border-color: #199c3b;
+	}
+
+	.observe-tab-selected-sentinel {
+		border-color: #d99a3f;
+	}
+
+	.observe-tab-selected-sanctions {
+		border-color: #c05f5f;
+	}
+
+	.observe-tab-selected-ranks {
+		border-color: $observe-ranks-accent;
+	}
+
+	// Keep each hover selector standalone: the engine applies a generic :hover
+	// after grouped selected/rest rules, which previously erased category paint.
+	.observe-tab-staff:hover {
+		background-color: rgba(#1689ff, 0.18);
+		border-color: #1689ff;
+		color: #1689ff;
+	}
+
+	.observe-tab-economy:hover {
+		background-color: rgba(#199c3b, 0.18);
+		border-color: #199c3b;
 		color: #199c3b;
 	}
 
-	.observe-tab-selected-sentinel,
-	.observe-tab-selected-sentinel:hover {
-		background-color: #272829;
-		border: 1px solid #d99a3f;
+	.observe-tab-sentinel:hover {
+		background-color: rgba(#d99a3f, 0.18);
+		border-color: #d99a3f;
 		color: #d99a3f;
 	}
 
-	.observe-tab-selected-sanctions,
-	.observe-tab-selected-sanctions:hover {
-		background-color: #5e3737;
-		border: 1px solid #c05f5f;
-		color: #e4e6e8;
+	.observe-tab-sanctions:hover {
+		background-color: rgba(#c05f5f, 0.18);
+		border-color: #c05f5f;
+		color: #c05f5f;
 	}
 
-	.observe-tab-selected-ranks,
-	.observe-tab-selected-ranks:hover {
+	.observe-tab-ranks:hover {
+		background-color: rgba($observe-ranks-accent, 0.18);
 		border-color: $observe-ranks-accent;
 		color: $observe-ranks-accent;
 	}
@@ -200,11 +209,12 @@ $observe-ranks-accent: hotpink;
 		flex-direction: column;
 		align-items: center;
 		gap: 4px;
-		padding: 16px 12px;
+		padding: 12px;
 		background-color: #1e1f21;
 		border: 1px solid #343536;
 		border-radius: 6px;
-		flex-shrink: 0;
+		flex-shrink: 1;
+		min-height: 0;
 
 		> .material-icons {
 			font-size: 22px;
