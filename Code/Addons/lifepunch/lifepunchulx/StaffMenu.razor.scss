@@ -48,6 +48,11 @@ $amber: #d99a3f;
 // ramp itself can never drift. These two deliberately keep full HUD saturation: item 11b
 // ("do not approximate, do not invent") outranks the desaturation pass for vitals only.
 $armor-hud: #08b2e3;
+// Native CloakStatus.Color (Code/Player/Status/Statuses/CloakStatus.cs).
+$cloak-hud: #9e9e9e;
+$cloak-hud-icon: #ffffff;
+// Native FreezeStatus.Color (Code/Player/Status/Statuses/FreezeStatus.cs).
+$freeze-hud: #00bcd4;
 // Portal Audit action-pill tones (dxrp.net/portal/audit). Data color, not chrome.
 // Names are words — s&box SCSS treats `$tone-0` as subtraction.
 $tone-teal: #0f766e;
@@ -889,8 +894,8 @@ $tone-gold: #a16207;
 	}
 
 	.target-frozen {
-		border-color: rgba($blue, 0.36);
-		color: $blue-highlight;
+		border-color: rgba($freeze-hud, 0.36);
+		color: $freeze-hud;
 	}
 
 	.target-identity-actions {
@@ -1333,14 +1338,14 @@ $tone-gold: #a16207;
 		border: 1px solid $border;
 		border-radius: 9px;
 		background-color: $surface-raised;
-		color: $text;
+		color: $blue;
 		cursor: pointer;
 		transition: background-color 140ms ease-out, border-color 140ms ease-out;
 	}
 
 	.action-btn .material-icons {
 		font-size: 26px;
-		color: $blue;
+		color: inherit;
 	}
 
 	.xray-skull {
@@ -1352,6 +1357,7 @@ $tone-gold: #a16207;
 	}
 
 	.action-label {
+		color: $text;
 		font-size: 14px;
 		font-weight: 700;
 		text-align: center;
@@ -1464,6 +1470,21 @@ $tone-gold: #a16207;
 		background-color: rgba($armor-hud, 0.26);
 	}
 
+	// Freeze follows its native Frozen HUD cyan and white snowflake.
+	.action-tone-freeze:hover {
+		border-color: $freeze-hud;
+		background-color: rgba($freeze-hud, 0.20);
+	}
+
+	.action-tone-freeze:hover .material-icons {
+		color: #ffffff;
+	}
+
+	.action-tone-freeze:active {
+		border-color: $freeze-hud;
+		background-color: rgba($freeze-hud, 0.26);
+	}
+
 	// TOGGLE ON -- a real runtime state, not a click echo. Held fully coloured for as long as
 	// StaffMenuHost reports the status live, so the card and the HUD indicator cannot disagree.
 	.action-toggle-on {
@@ -1481,6 +1502,32 @@ $tone-gold: #a16207;
 	.action-toggle-on:hover {
 		border-color: $blue-highlight;
 		background-color: $blue;
+	}
+
+	// Cloak keeps its native HUD gray border, translucent fill and white icon.
+	.action-tone-cloak:hover {
+		border-color: $cloak-hud;
+		background-color: rgba($cloak-hud, 0.20);
+	}
+
+	.action-tone-cloak:hover .material-icons,
+	.action-cloak-on .material-icons {
+		color: $cloak-hud-icon;
+	}
+
+	.action-tone-cloak:active {
+		border-color: $cloak-hud;
+		background-color: rgba($cloak-hud, 0.26);
+	}
+
+	.action-cloak-on {
+		border-color: $cloak-hud;
+		background-color: rgba($cloak-hud, 0.20);
+	}
+
+	.action-cloak-on:hover {
+		border-color: $cloak-hud;
+		background-color: rgba($cloak-hud, 0.30);
 	}
 
 	.empty {
@@ -1939,6 +1986,15 @@ $tone-gold: #a16207;
 
 	.confirm-btn-armor:hover {
 		background-color: rgba($armor-hud, 0.44);
+	}
+
+	.confirm-btn-freeze {
+		border-color: $freeze-hud;
+		background-color: rgba($freeze-hud, 0.30);
+	}
+
+	.confirm-btn-freeze:hover {
+		background-color: rgba($freeze-hud, 0.44);
 	}
 
 	// GIVE-MONEY polish -- the status lane is reserved BEFORE submission: validation text, the armed
@@ -3362,7 +3418,8 @@ $tone-gold: #a16207;
 	.confirm-disabled-state .material-icons,
 	.tp-disabled-state .material-icons,
 	.quick-sanction-disabled-state .material-icons,
-	.action-disabled-state .material-icons {
+	.action-disabled-state .material-icons,
+	.action-disabled-state .action-label {
 		color: $muted;
 	}
 

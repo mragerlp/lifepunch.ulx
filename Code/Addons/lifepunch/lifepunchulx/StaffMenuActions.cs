@@ -40,7 +40,9 @@ public enum StaffActionDisplayTone
 {
 	Severity,
 	Money,
-	Armor
+	Armor,
+	Cloak,
+	Freeze
 }
 
 /// <summary>
@@ -175,7 +177,7 @@ public static class StaffMenuActions
 
 		new( "cloak", "Cloak", CategoryCommands, "command.cloak",
 			StaffDispatchKind.ChatCommand, "cloak", StaffActionTarget.SelfOnly, StaffActionSeverity.Light,
-			NoArgs, "visibility_off", "Go invisible" ),
+			NoArgs, "visibility_off", "Go invisible", StaffActionDisplayTone.Cloak ),
 
 		new( "incognito", "Incognito", CategoryCommands, "command.incognito",
 			StaffDispatchKind.ChatCommand, "incognito", StaffActionTarget.SelfOnly, StaffActionSeverity.Light,
@@ -187,7 +189,7 @@ public static class StaffMenuActions
 
 		new( "freeze", "Freeze", CategoryCommands, "command.freeze",
 			StaffDispatchKind.ChatCommand, "freeze", StaffActionTarget.OtherPlayer, StaffActionSeverity.Severe,
-			NoArgs, "ac_unit", "Freeze player in place" ),
+			NoArgs, "ac_unit", "Freeze player in place", StaffActionDisplayTone.Freeze ),
 
 		new( "sethealth", "Set Health", CategoryCommands, "command.sethealth",
 			StaffDispatchKind.ChatCommand, "sethealth", StaffActionTarget.OtherPlayer, StaffActionSeverity.Severe,

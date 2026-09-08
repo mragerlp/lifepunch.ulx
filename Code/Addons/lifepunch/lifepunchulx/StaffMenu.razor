@@ -1561,15 +1561,16 @@
 					{
 						var enabled = IsEnabled( action, selected, hasTarget );
 							<button class="action-btn @( ActionStateClasses( action, enabled ) )"
+							        style="@ActionRestingAccentStyle( action, enabled )"
 						        tooltip="@( string.IsNullOrEmpty( action.Tooltip ) ? action.Label : action.Tooltip )"
 						        onclick="@(() => OnActionClick( action, selected, enabled ))">
 							@if ( action.Key == "xray" )
 							{
-								<StaffXrayIcon class="material-icons xray-skull" style="@ActionIconAccentStyle( action, enabled )" />
+								<StaffXrayIcon class="material-icons xray-skull" />
 							}
 							else
 							{
-								<i class="material-icons" style="@ActionIconAccentStyle( action, enabled )">@action.Icon</i>
+								<i class="material-icons">@action.Icon</i>
 							}
 							<span class="action-label">@action.Label</span>
 							@* One sub-line only. Showing description AND reason made card heights
@@ -1796,11 +1797,12 @@
 		action.Severity == StaffActionSeverity.Severe
 		&& action.DisplayTone == StaffActionDisplayTone.Severity;
 
-	// Confirmation membership includes Moderation, the red class, money and Set Armor.
+	// Confirmation membership includes Moderation, the red class, money, Set Armor and Freeze.
 	// Category membership changes the gesture only; IsRedAction keeps tone semantics intact.
 	private static bool UsesDoubleClickConfirm( StaffAction action ) =>
 		action.Category == StaffMenuActions.CategoryModeration
-		|| IsRedAction( action ) || action.Dispatch == StaffDispatchKind.GiveMoney || action.Key == "setarmor";
+		|| IsRedAction( action ) || action.Dispatch == StaffDispatchKind.GiveMoney
+		|| action.Key == "setarmor" || action.Key == "freeze";
 
 	// Every timed action must enter the armed form, including Moderation without arguments.
 	private static bool RequiresArmedConfirm( StaffAction action ) =>
@@ -1821,6 +1823,11 @@
 		if ( _severeConfirm && action.DisplayTone == StaffActionDisplayTone.Armor )
 		{
 			return "confirm-btn confirm-btn-armor";
+		}
+
+		if ( _severeConfirm && action.DisplayTone == StaffActionDisplayTone.Freeze )
+		{
+			return "confirm-btn confirm-btn-freeze";
 		}
 
 		return _severeConfirm && IsRedAction( action ) ? "confirm-btn confirm-btn-danger" : "confirm-btn";
@@ -2086,12 +2093,20 @@
 		{
 			classes += " action-tone-armor";
 		}
+		else if ( action.DisplayTone == StaffActionDisplayTone.Cloak )
+		{
+			classes += " action-tone-cloak";
+		}
+		else if ( action.DisplayTone == StaffActionDisplayTone.Freeze )
+		{
+			classes += " action-tone-freeze";
+		}
 
 		// Read from the host, never from a local click flag -- a click echo would desync from the
 		// HUD the moment anything else changed the state (death, respawn, another admin, reconnect).
 		if ( SelfToggleActionKeys.Contains( action.Key ) && StaffMenuHost.IsSelfToggleOn( action.Key ) )
 		{
-			classes += " action-toggle-on";
+			classes += action.Key == "cloak" ? " action-toggle-on action-cloak-on" : " action-toggle-on";
 		}
 
 		return classes.Trim();
@@ -3645,15 +3660,15 @@
 		StateHasChanged();
 	}
 
-	private static string ActionIconAccentStyle( StaffAction action, bool enabled )
+	private static string ActionRestingAccentStyle( StaffAction action, bool enabled )
 	{
 		if ( !enabled || IsDefaultAccent( _appliedAccentColor ) )
 		{
 			return "";
 		}
 
-		// A live toggle uses the existing white-on-blue state treatment. The configurable
-		// resting icon accent must not overwrite that semantic state.
+		// Inherit the resting accent from the card so semantic hover colors can override it.
+		// Live toggles keep their status treatment instead of the configurable accent.
 		if ( SelfToggleActionKeys.Contains( action.Key ) && StaffMenuHost.IsSelfToggleOn( action.Key ) )
 		{
 			return "";
