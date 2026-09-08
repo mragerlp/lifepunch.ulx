@@ -318,6 +318,10 @@ $tone-gold: #a16207;
 		border-color: rgba($blue, 0.34);
 	}
 
+	.chrome-cog:hover .material-icons {
+		color: $text;
+	}
+
 	.chrome-cog .material-icons,
 	.chrome-close .material-icons {
 		font-size: 22px;
@@ -2920,6 +2924,11 @@ $tone-gold: #a16207;
 		color: $text;
 	}
 
+	.accent-cancel:hover {
+		border-color: $danger;
+		background-color: rgba($danger, 0.10);
+	}
+
 	.settings-save-primary {
 		flex-direction: row;
 		flex-shrink: 0;
@@ -3383,28 +3392,109 @@ $tone-gold: #a16207;
 	.accent-secondary-actions > .settings-btn {
 		flex-direction: row;
 		flex-shrink: 0;
-		min-height: 44px;
-		padding: 0 16px;
+		min-height: 50px;
+		padding: 0 12px;
 		gap: 8px;
-		font-size: 14px;
+		font-size: 15px;
 		white-space: nowrap;
 	}
 
 	// Actions, preview summary and the native palette share the existing card interior.
 	// Keep the outer Settings columns and card rules unchanged; verify the fit in-engine.
 	.accent-palette {
+		position: relative;
 		flex-direction: row;
-		align-items: center;
+		align-items: flex-end;
 		flex: 1 1 auto;
 		min-height: 0;
 		gap: 16px;
 		margin-top: 0;
 	}
 
+	.accent-command-preview-area {
+		position: absolute;
+		top: 11px;
+		left: 0;
+		width: 232px;
+		flex-direction: column;
+		align-items: center;
+		pointer-events: none;
+	}
+
+	.accent-preview-samples {
+		flex-direction: row;
+		align-items: center;
+		gap: 12px;
+		pointer-events: none;
+	}
+
+	.accent-command-preview {
+		position: relative;
+		flex: 0 0 auto;
+		width: 124px;
+		height: 80px;
+		min-height: 80px;
+		max-height: 80px;
+		padding: 7px;
+		pointer-events: none;
+	}
+
+	.accent-command-preview .material-icons {
+		font-size: 24px;
+	}
+
+	.accent-command-preview .action-label {
+		font-size: 12px;
+	}
+
+	.accent-command-preview,
+	.accent-command-preview:hover {
+		cursor: default;
+		border-color: $border;
+		background-color: $surface-raised;
+	}
+
+	.accent-navigation-preview {
+		flex-direction: column;
+		justify-content: center;
+		flex: 0 0 auto;
+		width: 80px;
+		height: 80px;
+		gap: 6px;
+		pointer-events: none;
+	}
+
+	.accent-navigation-preview-header {
+		flex-direction: row;
+		align-items: center;
+		gap: 12px;
+	}
+
+	.accent-wordmark-preview {
+		font-size: 20px;
+		font-weight: 800;
+	}
+
+	.accent-navigation-preview-header .material-icons {
+		font-size: 18px;
+	}
+
+	.accent-tab-preview {
+		align-items: center;
+		justify-content: center;
+		align-self: flex-start;
+		height: 28px;
+		width: 80px;
+		border-bottom: 2px solid $blue;
+		font-size: 10px;
+		font-weight: 700;
+		color: $text;
+	}
+
 	.accent-picker-inline {
 		flex-direction: column;
 		flex-shrink: 0;
-		width: 184px;
+		width: 192px;
 		min-height: 0;
 	}
 
@@ -3414,8 +3504,8 @@ $tone-gold: #a16207;
 	}
 
 	.accent-picker-inline ColorSaturationValueControl {
-		width: 184px;
-		height: 184px;
+		width: 192px;
+		height: 192px;
 	}
 
 	.accent-picker-inline ColorHueControl {
@@ -3427,11 +3517,67 @@ $tone-gold: #a16207;
 	}
 
 	.accent-palette-summary {
+		position: relative;
 		flex-direction: column;
+		margin-left: 16px;
+		margin-right: 16px;
 		flex: 1 1 0;
 		min-width: 0;
 		min-height: 0;
 		gap: 12px;
+	}
+
+	.accent-hex-field {
+		position: relative;
+		flex-direction: column;
+		flex-shrink: 0;
+		gap: 4px;
+	}
+
+	.accent-hex-label {
+		height: 16px;
+		font-size: 12px;
+		letter-spacing: 1px;
+		text-transform: uppercase;
+		color: $muted;
+	}
+
+	.accent-hex-controls {
+		flex-direction: row;
+		align-items: center;
+		gap: 6px;
+	}
+
+	.accent-hex-input {
+		flex: 1 1 0;
+		min-width: 0;
+		height: 40px;
+		min-height: 40px;
+		max-height: 40px;
+	}
+
+	.accent-hex-confirm {
+		flex: 0 0 64px;
+		width: 64px;
+		height: 40px;
+		min-height: 40px;
+		max-height: 40px;
+		padding: 0 7px;
+		font-size: 11px;
+	}
+
+	.accent-hex-invalid {
+		border-color: $danger;
+	}
+
+	.accent-hex-feedback {
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: -14px;
+		height: 12px;
+		font-size: 10px;
+		color: $danger;
 	}
 
 	.accent-state-row {
@@ -3445,21 +3591,21 @@ $tone-gold: #a16207;
 		flex-direction: column;
 		align-items: center;
 		flex-shrink: 0;
-		width: 48px;
+		width: 60px;
 		gap: 4px;
 	}
 
 	.accent-preview {
 		flex-shrink: 0;
-		width: 40px;
-		height: 40px;
+		width: 52px;
+		height: 52px;
 		border: 1px solid rgba($text, 0.24);
 		border-radius: 7px;
 	}
 
 	.accent-preview-applied {
-		width: 48px;
-		height: 48px;
+		width: 60px;
+		height: 60px;
 	}
 
 	.accent-state-copy {
@@ -3471,7 +3617,7 @@ $tone-gold: #a16207;
 
 	.accent-state-label {
 		color: $muted;
-		font-size: 11px;
+		font-size: 12px;
 		text-transform: uppercase;
 		letter-spacing: 1px;
 	}
@@ -3479,14 +3625,14 @@ $tone-gold: #a16207;
 	// Wraps rather than overflows: the summary column is the flexible one beside the picker.
 	.accent-state-value {
 		color: $text;
-		font-size: 12px;
+		font-size: 13px;
 		white-space: normal;
 	}
 
 	.accent-actions {
 		flex-direction: column;
 		align-items: stretch;
-		align-self: center;
+		align-self: flex-end;
 		flex-shrink: 0;
 		width: 232px;
 		gap: 8px;

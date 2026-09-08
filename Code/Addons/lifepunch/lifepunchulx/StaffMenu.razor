@@ -24,7 +24,7 @@
 		<div class="header">
 			<div class="title">
 				<div class="title-stack">
-					<span class="title-primary brand-wordmark"><span class="wordmark-life">lifepunch</span><span class="ulx">.ulx</span></span>
+					<span class="title-primary brand-wordmark"><span class="wordmark-life">lifepunch</span><span class="ulx" style="@AccentWordmarkStyle( _appliedAccentColor )">.ulx</span></span>
 					<span class="title-sub">ULX CONSOLE</span>
 				</div>
 			</div>
@@ -35,7 +35,7 @@
 					<i class="material-icons">language</i>
 					<span>@(_websiteCopied ? "Link copied!" : StaffMenuHost.NetworkIdentifier)</span>
 				</button>
-				<button class="lp-ui-chrome-btn cog chrome-cog @( _activeTab == TabSettings ? "chrome-active" : "" )" tooltip="Settings" onclick="@OpenSettings">
+				<button class="lp-ui-chrome-btn cog chrome-cog @( _activeTab == TabSettings ? "chrome-active" : "" )" style="@HeaderCogAccentStyle()" tooltip="Settings" onclick="@OpenSettings">
 					<i class="material-icons">settings</i>
 				</button>
 				<button class="lp-ui-chrome-btn close chrome-close @( MoneyGrantNavigationLocked() ? "control-disabled" : "" )"
@@ -49,21 +49,21 @@
 		<div class="tabs">
 			@foreach ( var category in StaffMenuActions.Categories )
 			{
-				<button class="@TabClass( category )"
+				<button class="@TabClass( category )" style="@TopTabAccentStyle( category )"
 				        onclick="@(() => SelectTab( category ))">
 					<span>@category</span>
 				</button>
 			}
 			@if ( StaffMenuHost.CanUseWaypoints() )
 			{
-				<button class="@TabClass( TabWaypoints )"
+				<button class="@TabClass( TabWaypoints )" style="@TopTabAccentStyle( TabWaypoints )"
 				        onclick="@(() => SelectTab( TabWaypoints ))">
 					<span>Waypoints</span>
 				</button>
 			}
 			@if ( StaffMenuHost.CanViewAudit() )
 			{
-				<button class="@TabClass( TabAudit )"
+				<button class="@TabClass( TabAudit )" style="@TopTabAccentStyle( TabAudit )"
 				        onclick="@(() => SelectTab( TabAudit ))">
 					<span>Audit</span>
 				</button>
@@ -248,7 +248,7 @@
 			<div class="waypoints">
 				<div class="wp-main">
 				<div class="wp-head">
-					<i class="material-icons">place</i>
+					<i class="material-icons" style="@AppliedGlyphStyle()">place</i>
 					<span>Waypoints</span>
 				</div>
 
@@ -338,7 +338,7 @@
 				{
 					<div class="wp-return-section">
 						<div class="wp-head">
-							<i class="material-icons">undo</i>
+							<i class="material-icons" style="@AppliedGlyphStyle()">undo</i>
 							<span>Move a player</span>
 						</div>
 
@@ -378,7 +378,7 @@
 						@if ( StaffMenuHost.CanViewAudit() )
 						{
 							<div class="wp-head wp-events-head">
-								<i class="material-icons">history</i>
+								<i class="material-icons" style="@AppliedGlyphStyle()">history</i>
 								<span>Recent teleport events</span>
 							</div>
 
@@ -430,7 +430,7 @@
 		{
 			<div class="settings">
 				<div class="settings-head">
-					<i class="material-icons">settings</i>
+					<i class="material-icons" style="@AppliedGlyphStyle()">settings</i>
 					<span>Settings</span>
 				</div>
 
@@ -489,28 +489,59 @@
 
 						<div class="settings-group settings-appearance">
 							<div class="settings-label">Appearance</div>
-							<div class="settings-hint">Sets resting action-card icons. Status colors stay fixed.</div>
+							<div class="settings-hint">Preview icon and navigation accents. Status colors stay fixed.</div>
 
 							<div class="accent-palette">
+								<div class="accent-command-preview-area">
+									<div class="accent-preview-samples">
+										<div class="accent-navigation-preview">
+											<div class="accent-navigation-preview-header">
+												<span class="accent-wordmark-preview" style="@AccentWordmarkStyle( _accentHolder.Color )">.ulx</span>
+												<i class="material-icons" style="color: @AccentDraftHex()">settings</i>
+											</div>
+											<div class="accent-tab-preview" style="border-bottom-color: @AccentDraftHex()">
+												<span>Moderation</span>
+											</div>
+										</div>
+										<div class="action-btn accent-command-preview">
+											<i class="material-icons" style="color: @AccentDraftHex()">shield</i>
+											<span class="action-label">God Mode</span>
+										</div>
+									</div>
+								</div>
+
 								<div class="accent-actions">
 									<div class="accent-secondary-actions">
-										<button type="button" class="settings-btn @( _accentDirty ? "accent-cancel" : "accent-cancel-inert control-disabled accent-action-disabled" )"
-										        tooltip="@( _accentDirty ? "Discard the selected color" : "Nothing to discard" )"
+										<button type="button" class="settings-btn @( CanCancelAccent() ? "accent-cancel" : "accent-cancel-inert control-disabled accent-action-disabled" )"
+										        tooltip="@( CanCancelAccent() ? "Discard color changes" : "Nothing to discard" )"
 										        onclick="@CancelAccentDraft">
 											<i class="material-icons">close</i> Cancel
 										</button>
-										<button type="button" class="settings-btn accent-reset" tooltip="Restore the default blue card accent" onclick="@ResetAccent">
+										<button type="button" class="settings-btn accent-reset" tooltip="Restore the default blue accent" onclick="@ResetAccent">
 											<i class="material-icons">restart_alt</i> Reset
 										</button>
 									</div>
-									<button type="button" class="settings-btn @( _accentDirty ? "accent-apply" : "accent-apply-inert control-disabled accent-action-disabled" )"
-									        tooltip="@( _accentDirty ? "Apply the selected color to action-card icons" : "Selected and applied colors already match" )"
+									<button type="button" class="settings-btn @( CanApplyAccent() ? "accent-apply" : "accent-apply-inert control-disabled accent-action-disabled" )"
+									        tooltip="@( _accentHexInvalid ? "Enter a valid hex color" : ( CanApplyAccent() ? "Apply the selected icon and navigation accent" : "Selected and applied colors already match" ) )"
 									        onclick="@ApplyAccent">
 										<i class="material-icons">check</i> Apply accent
 									</button>
 								</div>
 
 								<div class="accent-palette-summary">
+									<div class="accent-state-row">
+										<div class="accent-preview-slot">
+											<div class="accent-preview" style="background-color: @AccentDraftHex()"></div>
+										</div>
+										<div class="accent-state-copy">
+											<span class="accent-state-label">Selected</span>
+											<button type="button" class="accent-copy-value"
+											        tooltip="@( _copiedSelectedAccentHex == SelectedAccentCopyHex() ? $"Copied selected {SelectedAccentCopyHex()}" : $"Copy selected {SelectedAccentCopyHex()}" )" onclick="@CopySelectedAccent">
+												<Label Tokenize=@(false) Text=@( _copiedSelectedAccentHex == SelectedAccentCopyHex() ? "Copied!" : AccentDraftLabel() ) class="accent-state-value" />
+											</button>
+										</div>
+									</div>
+
 									<div class="accent-state-row">
 										<div class="accent-preview-slot">
 											<div class="accent-preview accent-preview-applied" style="background-color: @AppliedAccentHex()"></div>
@@ -523,17 +554,20 @@
 											</button>
 										</div>
 									</div>
-
-									<div class="accent-state-row">
-										<div class="accent-preview-slot">
-											<div class="accent-preview" style="background-color: @AccentDraftHex()"></div>
+									<div class="accent-hex-field">
+										<div class="accent-hex-label">Hex color</div>
+										<div class="accent-hex-controls">
+											<TextEntry class="arg-input accent-hex-input @( _accentHexInvalid ? "accent-hex-invalid" : "" )"
+											           Placeholder="#1689FF" Value:bind="@AccentHexInput"/>
+											<button type="button" class="settings-btn accent-hex-confirm @( CanApplyAccent() ? "accent-apply" : "accent-apply-inert control-disabled accent-action-disabled" )"
+											        tooltip="@( _accentHexInvalid ? "Enter a valid hex color" : "Apply this hex color" )"
+											        onclick="@ApplyAccent">Confirm</button>
 										</div>
-										<div class="accent-state-copy">
-											<span class="accent-state-label">Selected</span>
-											<button type="button" class="accent-copy-value"
-											        tooltip="@( _copiedSelectedAccentHex == SelectedAccentCopyHex() ? $"Copied selected {SelectedAccentCopyHex()}" : $"Copy selected {SelectedAccentCopyHex()}" )" onclick="@CopySelectedAccent">
-												<Label Tokenize=@(false) Text=@( _copiedSelectedAccentHex == SelectedAccentCopyHex() ? "Copied!" : AccentDraftLabel() ) class="accent-state-value" />
-											</button>
+										<div class="accent-hex-feedback">
+											@if ( _accentHexInvalid )
+											{
+												<span>Use 3 or 6 hex digits.</span>
+											}
 										</div>
 									</div>
 								</div>
@@ -710,7 +744,7 @@
 						<div class="roster-section @(_staffSectionCollapsed ? "roster-section-collapsed" : "")">
 							<button class="parent-label @(_staffSectionCollapsed ? "" : "parent-label-open")" onclick="@ToggleStaffSection">
 								<span class="parent-label-text">Staff (@staffCount)</span>
-								<i class="material-icons parent-label-chevron">@(_staffSectionCollapsed ? "chevron_right" : "expand_more")</i>
+								<i class="material-icons parent-label-chevron" style="@NavigationChevronStyle( _staffSectionCollapsed )">@(_staffSectionCollapsed ? "chevron_right" : "expand_more")</i>
 							</button>
 							@if ( !_staffSectionCollapsed )
 							{
@@ -720,7 +754,7 @@
 										<div class="group-label">@group.Name (@group.Players.Count)</div>
 										@foreach ( var player in group.Players )
 										{
-											<button class="player-row @( ( _showProfile ? _profileSteamId : _selectedSteamId ) == player.SteamId ? "player-row-selected" : "" )"
+											<button class="player-row @( ( _showProfile ? _profileSteamId : _selectedSteamId ) == player.SteamId ? "player-row-selected" : "" )" style="@PlayerRowAccentStyle( player.SteamId )"
 											        tooltip="View player profile"
 											        onclick="@(() => Select( player.SteamId ))">
 												<i class="material-icons avatar">person</i>
@@ -743,14 +777,14 @@
 						<div class="roster-section @(_playersSectionCollapsed ? "roster-section-collapsed" : "")">
 							<button class="parent-label @(_playersSectionCollapsed ? "" : "parent-label-open")" onclick="@TogglePlayersSection">
 								<span class="parent-label-text">Players (@nonStaff.Count)</span>
-								<i class="material-icons parent-label-chevron">@(_playersSectionCollapsed ? "chevron_right" : "expand_more")</i>
+								<i class="material-icons parent-label-chevron" style="@NavigationChevronStyle( _playersSectionCollapsed )">@(_playersSectionCollapsed ? "chevron_right" : "expand_more")</i>
 							</button>
 							@if ( !_playersSectionCollapsed )
 							{
 								<div class="roster-tier roster-tier-players">
 									@foreach ( var player in nonStaff )
 									{
-										<button class="player-row @( ( _showProfile ? _profileSteamId : _selectedSteamId ) == player.SteamId ? "player-row-selected" : "" )"
+										<button class="player-row @( ( _showProfile ? _profileSteamId : _selectedSteamId ) == player.SteamId ? "player-row-selected" : "" )" style="@PlayerRowAccentStyle( player.SteamId )"
 										        tooltip="View player profile"
 										        onclick="@(() => Select( player.SteamId ))">
 											<i class="material-icons avatar">person</i>
@@ -803,14 +837,14 @@
 					var profileArmorAction = detail.Found ? GetProfileStatAction( "setarmor", profileSteamId ) : null;
 					<div class="profile">
 						<div class="profile-head">
-							<button class="icon-btn" onclick="@CloseProfile"><i class="material-icons">arrow_back</i></button>
+							<button class="icon-btn" onclick="@CloseProfile"><i class="material-icons" style="@AppliedGlyphStyle()">arrow_back</i></button>
 							<span>Player Profile</span>
 						</div>
 
 						<div class="profile-card">
 							<div class="profile-identity-row">
 								<div class="profile-identity">
-									<img class="profile-avatar" src="avatar:@profileSteamId"/>
+									<img class="profile-avatar" src="avatar:@profileSteamId" style="@ProfilePortraitAccentStyle()"/>
 									<div class="profile-identity-copy">
 										<div class="profile-name">@( detail.Found ? detail.Name : "Off-roster target" )</div>
 									</div>
@@ -1216,7 +1250,7 @@
 					}
 					else
 					{
-						<i class="material-icons">public</i>
+						<i class="material-icons" style="@AppliedGlyphStyle()">public</i>
 						<div class="target-identity-copy">
 							<span class="target-name">No target selected</span>
 							<span class="target-identity-hint">Self and server actions remain available.</span>
@@ -1639,6 +1673,7 @@
 	//    lit) and inline outranks `.tab:hover`, which killed hover feedback.
 	// A method (not an inline `@( ... ? "x" : "" )` with nested quotes) keeps the class binding clean,
 	// and toggling a class reliably applies AND clears while `.tab:hover` keeps working on the rest.
+	// The theme binds only border-bottom-color and explicitly writes transparent for inactive tabs.
 	private string TabClass( string tab ) => _activeTab == tab ? "tab tab-sel" : "tab";
 
 	/// <summary>Material icon per tab strip entry (visual flavor only).</summary>
@@ -3329,10 +3364,75 @@
 	private Color _lastObservedAccent = DefaultAccentColor;
 	private bool _normalizingAccent;
 	private bool _accentDirty;
+	private string _accentHexInput = DefaultAccentHex;
+	private bool _accentHexInvalid;
 	private string _copiedAppliedAccentHex = "";
 	private string _copiedSelectedAccentHex = "";
 	private int _appliedAccentCopyGeneration;
 	private int _selectedAccentCopyGeneration;
+
+	private string AccentHexInput
+	{
+		get => _accentHexInput;
+		set
+		{
+			// Keep the user's text intact while typing; a six-digit hex passes through three digits.
+			_accentHexInput = value ?? "";
+			_accentHexInvalid = !TryNormalizeAccentHex( _accentHexInput, out var normalized );
+			if ( !_accentHexInvalid )
+			{
+				var parsed = Color.Parse( normalized );
+				if ( parsed.HasValue )
+				{
+					_accentHolder.Color = OpaqueAccent( parsed.Value );
+					_lastObservedAccent = _accentHolder.Color;
+					_accentDirty = _accentHolder.Color != _appliedAccentColor;
+				}
+				else
+				{
+					_accentHexInvalid = true;
+				}
+			}
+
+			StateHasChanged();
+		}
+	}
+
+	private static bool TryNormalizeAccentHex( string input, out string normalized )
+	{
+		normalized = "";
+		var digits = (input ?? "").Trim();
+		if ( digits.StartsWith( "#", StringComparison.Ordinal ) )
+		{
+			digits = digits.Substring( 1 );
+		}
+
+		if ( digits.Length != 3 && digits.Length != 6 )
+		{
+			return false;
+		}
+
+		foreach ( var digit in digits )
+		{
+			if ( !(digit >= '0' && digit <= '9') && !(digit >= 'a' && digit <= 'f') && !(digit >= 'A' && digit <= 'F') )
+			{
+				return false;
+			}
+		}
+
+		if ( digits.Length == 3 )
+		{
+			digits = $"{digits[0]}{digits[0]}{digits[1]}{digits[1]}{digits[2]}{digits[2]}";
+		}
+
+		normalized = "#" + digits.ToUpperInvariant();
+		return true;
+	}
+
+	private bool CanApplyAccent() => _accentDirty && !_accentHexInvalid;
+
+	private bool CanCancelAccent() => _accentDirty || _accentHexInvalid
+		|| !string.Equals( _accentHexInput, AppliedAccentCopyHex(), StringComparison.OrdinalIgnoreCase );
 
 	private SerializedProperty? AccentProperty
 	{
@@ -3357,7 +3457,7 @@
 	}
 
 	// Native picker writes arrive through SerializedObject.OnPropertyChanged. Alpha is deliberately
-	// ignored: ULX exposes one opaque icon accent, never a transparency control.
+	// ignored: ULX exposes one opaque accent, never a transparency control.
 	private void SenseAccentPicker()
 	{
 		if ( _accentObject is null || _normalizingAccent )
@@ -3372,6 +3472,9 @@
 			_accentHolder.Color = selected;
 			_normalizingAccent = false;
 		}
+
+		_accentHexInput = "#" + selected.Hex.TrimStart( '#' );
+		_accentHexInvalid = false;
 
 		if ( selected == _lastObservedAccent )
 		{
@@ -3388,6 +3491,8 @@
 		_accentHolder.Color = OpaqueAccent( _appliedAccentColor );
 		_lastObservedAccent = _accentHolder.Color;
 		_accentDirty = false;
+		_accentHexInput = AppliedAccentCopyHex();
+		_accentHexInvalid = false;
 	}
 
 	private string AccentDraftHex() => OpaqueAccent( _accentHolder.Color ).Hex;
@@ -3397,6 +3502,36 @@
 		: AccentDraftHex();
 
 	private static string AppliedAccentHex() => OpaqueAccent( _appliedAccentColor ).Hex;
+
+	// Theme only decorative chrome. Explicit values also restore the default on Reset.
+	private static string AppliedGlyphStyle() => $"color: {AppliedAccentHex()};";
+
+	private string TopTabAccentStyle( string tab )
+		=> $"border-bottom-color: {(_activeTab == tab ? AppliedAccentHex() : "transparent")};";
+
+	private static string NavigationChevronStyle( bool collapsed )
+		=> $"color: {(collapsed ? "#8d8f90" : AppliedAccentHex())};";
+
+	private string HeaderCogAccentStyle()
+		=> $"color: {(IsDefaultAccent( _appliedAccentColor ) ? (_activeTab == TabSettings ? "#55aaff" : "#8d8f90") : AppliedAccentHex())};";
+
+	private string PlayerRowAccentStyle( long steamId )
+		=> $"border-color: {((_showProfile ? _profileSteamId : _selectedSteamId) == steamId ? AppliedAccentHex() : "transparent")};";
+
+	private static string ProfilePortraitAccentStyle()
+		=> $"border-color: {AccentRgba( _appliedAccentColor, 0.48f )};";
+
+	private static string AccentWordmarkStyle( Color accent )
+		=> $"color: {OpaqueAccent( accent ).Hex}; text-shadow: 0 0 12px {AccentRgba( accent, 0.58f )};";
+
+	private static string AccentRgba( Color accent, float opacity )
+	{
+		var rgb = OpaqueAccent( accent ).Hex.TrimStart( '#' );
+		var red = Convert.ToInt32( rgb.Substring( 0, 2 ), 16 );
+		var green = Convert.ToInt32( rgb.Substring( 2, 2 ), 16 );
+		var blue = Convert.ToInt32( rgb.Substring( 4, 2 ), 16 );
+		return FormattableString.Invariant( $"rgba({red}, {green}, {blue}, {opacity:0.##})" );
+	}
 
 	private static string AppliedAccentLabel() => IsDefaultAccent( _appliedAccentColor )
 		? "Blue (default)"
@@ -3452,14 +3587,13 @@
 	/// <summary>Commit the draft -- the ONLY path that repaints the console. No-op while nothing is dirty.</summary>
 	private void ApplyAccent()
 	{
-		if ( !_accentDirty )
+		if ( !CanApplyAccent() )
 		{
 			return;
 		}
 
 		_appliedAccentColor = OpaqueAccent( _accentHolder.Color );
-		_lastObservedAccent = _appliedAccentColor;
-		_accentDirty = false;
+		SyncAccentDraft();
 		StateHasChanged();
 	}
 
@@ -3760,6 +3894,6 @@
 			// here for the same reason PartyMenu hashes its picker: the preview swatch and the Apply gate
 			// follow the picker before anything is committed.
 			HashCode.Combine( _appliedAccentColor, _accentDirty, _accentHolder.Color, _moneyUnlockArmed,
-				_copiedAppliedAccentHex, _copiedSelectedAccentHex ) );
+				_copiedAppliedAccentHex, _copiedSelectedAccentHex, _accentHexInput, _accentHexInvalid ) );
 	}
 }
