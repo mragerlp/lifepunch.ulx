@@ -61,6 +61,7 @@ public readonly record struct StaffPlayerDetail(
 	int Health,
 	int MaxHealth,
 	int Armor,
+	int MaxArmor,
 	int Kills,
 	int Deaths,
 	bool Found );
@@ -1321,21 +1322,22 @@ internal static class StaffMenuHost
 		var p = OnlinePlayers().FirstOrDefault( x => x.SteamId == steamId );
 		if ( p.SteamId == 0 )
 		{
-			return new StaffPlayerDetail( steamId, "", "—", "#ffffff", 0, 0, "—", "#ffffff", 0, 0, 0, 0, 0, 0, 0, 0, false );
+			return new StaffPlayerDetail( steamId, "", "—", "#ffffff", 0, 0, "—", "#ffffff", 0, 0, 0, 0, 0, 0, 0, 0, 0, false );
 		}
 
 		return new StaffPlayerDetail( p.SteamId, p.Name, p.Role, p.RankColorHex, p.PlayTimeMinutes,
-			2, "Citizen", "#5DA9E9", 50, 1240, 540323, 100, 100, 25, 12, 4, true );
+			2, "Citizen", "#5DA9E9", 50, 1240, 540323, 100, 100, 25, 100, 12, 4, true );
 #else
 		var player = GameUtils.Players.FirstOrDefault( x => x.IsValid() && x.SteamId == steamId );
 		if ( !player.IsValid() )
 		{
-			return new StaffPlayerDetail( steamId, "", "—", "#ffffff", 0, 0, "—", "#ffffff", 0, 0, 0, 0, 0, 0, 0, 0, false );
+			return new StaffPlayerDetail( steamId, "", "—", "#ffffff", 0, 0, "—", "#ffffff", 0, 0, 0, 0, 0, 0, 0, 0, 0, false );
 		}
 
 		var health = player.HealthComponent.IsValid() ? (int)player.HealthComponent.Health : 0;
 		var maxHealth = player.HealthComponent.IsValid() ? (int)player.HealthComponent.MaxHealth : 0;
 		var armor = player.ArmorComponent.IsValid() ? (int)player.ArmorComponent.Armor : 0;
+		var maxArmor = player.ArmorComponent.IsValid() ? (int)player.ArmorComponent.MaxArmor : 0;
 
 		// JobDisplayName is CustomJob ?? Job.DisplayName(); guard the rare pre-init state where both are null.
 		var job = "—";
@@ -1369,6 +1371,7 @@ internal static class StaffMenuHost
 			health,
 			maxHealth,
 			armor,
+			maxArmor,
 			player.Kills,
 			player.Deaths,
 			true );
@@ -2385,6 +2388,20 @@ internal static class StaffMenuHost
 #endif
 	}
 
+	/// <summary>Use the registered local command and the server's grants, never a rank-name threshold.</summary>
+	public static bool CanUseXray()
+	{
+#if LIFEPUNCH_LOCAL
+		return true;
+#else
+		var chat = Chat.Current;
+		var player = Player.Local;
+		return player.IsValid() && chat is not null && CanView( "command.xray" )
+			&& chat.TryGetCommand( "xray", out var command ) && command is not null
+			&& chat.CanAccessCommand( player, command );
+#endif
+	}
+
 	// --- Dispatch ----------------------------------------------------------
 
 	/// <summary>
@@ -2407,6 +2424,16 @@ internal static class StaffMenuHost
 				break;
 			case StaffDispatchKind.LocalToggle:
 				DispatchLocalToggle( action );
+				break;
+			case StaffDispatchKind.LocalCommand:
+				if ( action.Key == "xray" && action.DispatchTarget == "xray" && CanUseXray() )
+				{
+					// Consumed is not an enabled-state receipt; the native command owns state and feedback.
+					if ( !Chat.Current.TryExecuteLocalCommand( "/xray" ) )
+					{
+						Player.Local.SendMessage( "X-ray is unavailable in this session." );
+					}
+				}
 				break;
 			case StaffDispatchKind.GiveMoney:
 				DispatchGiveMoney( targetSteamId, args );

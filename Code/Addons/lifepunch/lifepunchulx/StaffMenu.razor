@@ -761,7 +761,7 @@
 												<span class="player-online"></span>
 												<span class="player-copy">
 													<span class="name">@player.Name</span>
-													<span class="role">@player.Role</span>
+													<span class="role" style="@( $"color: {player.RankColorHex};" )">@player.Role</span>
 												</span>
 												@if ( !player.CanTarget )
 												{
@@ -791,7 +791,7 @@
 											<span class="player-online"></span>
 											<span class="player-copy">
 												<span class="name">@player.Name</span>
-												<span class="role">@player.Role</span>
+												<span class="role" style="@( $"color: {player.RankColorHex};" )">@player.Role</span>
 											</span>
 											@if ( !player.CanTarget )
 											{
@@ -907,7 +907,7 @@
 												</div>
 												<div class="field">
 													<span class="k">Role</span>
-													<span class="v v-role @( detail.Found ? "" : "v-tone-zero" )">@detail.Role</span>
+													<span class="v v-role @( detail.Found ? "" : "v-tone-zero" )" style="@( detail.Found ? $"color: {detail.RankColorHex};" : "" )">@detail.Role</span>
 												</div>
 												<div class="field">
 													<span class="k">Level</span>
@@ -1010,11 +1010,11 @@
 													{
 														<button type="button" class="v profile-stat-value @( detail.Armor > 0 ? "v-armor" : "v-tone-zero" )"
 														        tooltip="Open Set Armor for this player; choose an amount and confirm"
-														        onclick="@(() => OpenProfileStat( "setarmor", profileSteamId ))">@detail.Armor.ToString()</button>
+														        onclick="@(() => OpenProfileStat( "setarmor", profileSteamId ))">@( $"{detail.Armor} / {detail.MaxArmor}" )</button>
 													}
 													else
 													{
-														<span class="v @( detail.Armor > 0 ? "v-armor" : "v-tone-zero" )">@( detail.Found ? detail.Armor.ToString() : "—" )</span>
+														<span class="v @( detail.Armor > 0 ? "v-armor" : "v-tone-zero" )">@( detail.Found ? $"{detail.Armor} / {detail.MaxArmor}" : "—" )</span>
 													}
 												</div>
 												<div class="field">
@@ -1215,7 +1215,7 @@
 								<span class="target-name">@( hasTarget ? selected.Name : $"SteamID {_selectedSteamId}" )</span>
 								@if ( hasTarget && !string.IsNullOrWhiteSpace( selected.Role ) )
 								{
-									<span class="target-role">@selected.Role</span>
+									<span class="target-role" style="@( $"color: {selected.RankColorHex};" )">@selected.Role</span>
 								}
 								<span class="target-steamid">SteamID @_selectedSteamId</span>
 							</div>
@@ -1531,7 +1531,7 @@
 								   and on whom. The money grant's restatement lives INSIDE its status lane above, so it never
 								   adds height under the button; same .grant-confirm styling for both -- one seam, one look. *@
 								<span class="grant-confirm-line"><span class="grant-word-lead">Are you sure? Run</span><span class="grant-amount">@pending.Label</span><span class="grant-word-mid">on</span><span class="grant-target">@targetContext</span>?</span>
-								<span class="grant-confirm-sub">@( UsesDoubleClickConfirm( pending ) ? "Double-click to confirm. This executes for real on the live host and cannot be undone from this console." : "Confirm once more to run this action on the live host." )</span>
+								<span class="grant-confirm-sub">@( pending.Dispatch == StaffDispatchKind.LocalCommand ? "Double-click to toggle X-ray for yourself. Run it again to turn it off." : ( UsesDoubleClickConfirm( pending ) ? "Double-click to confirm. This executes for real on the live host and cannot be undone from this console." : "Confirm once more to run this action on the live host." ) )</span>
 							</div>
 						}
 
@@ -1563,7 +1563,14 @@
 							<button class="action-btn @( ActionStateClasses( action, enabled ) )"
 						        tooltip="@( string.IsNullOrEmpty( action.Tooltip ) ? action.Label : action.Tooltip )"
 						        onclick="@(() => OnActionClick( action, selected, enabled ))">
-							<i class="material-icons" style="@ActionIconAccentStyle( action, enabled )">@action.Icon</i>
+							@if ( action.Key == "xray" )
+							{
+								<StaffXrayIcon class="material-icons xray-skull" style="@ActionIconAccentStyle( action, enabled )" />
+							}
+							else
+							{
+								<i class="material-icons" style="@ActionIconAccentStyle( action, enabled )">@action.Icon</i>
+							}
 							<span class="action-label">@action.Label</span>
 							@* One sub-line only. Showing description AND reason made card heights
 							   differ between rows, which a scrolling grid makes obvious.
@@ -1789,11 +1796,11 @@
 		action.Severity == StaffActionSeverity.Severe
 		&& action.DisplayTone == StaffActionDisplayTone.Severity;
 
-	// Confirmation membership includes Moderation, the red class and the money grant.
+	// Confirmation membership includes Moderation, the red class, money and Set Armor.
 	// Category membership changes the gesture only; IsRedAction keeps tone semantics intact.
 	private static bool UsesDoubleClickConfirm( StaffAction action ) =>
 		action.Category == StaffMenuActions.CategoryModeration
-		|| IsRedAction( action ) || action.Dispatch == StaffDispatchKind.GiveMoney;
+		|| IsRedAction( action ) || action.Dispatch == StaffDispatchKind.GiveMoney || action.Key == "setarmor";
 
 	// Every timed action must enter the armed form, including Moderation without arguments.
 	private static bool RequiresArmedConfirm( StaffAction action ) =>
@@ -1811,6 +1818,11 @@
 
 		// Jail gains the armed step, and Give Money keeps its stricter gesture,
 		// without either joining the danger-red visual classification.
+		if ( _severeConfirm && action.DisplayTone == StaffActionDisplayTone.Armor )
+		{
+			return "confirm-btn confirm-btn-armor";
+		}
+
 		return _severeConfirm && IsRedAction( action ) ? "confirm-btn confirm-btn-danger" : "confirm-btn";
 	}
 
@@ -1823,7 +1835,9 @@
 
 		if ( UsesDoubleClickConfirm( action ) )
 		{
-			return "Double-click to confirm - this runs for real on the live host";
+			return action.Dispatch == StaffDispatchKind.LocalCommand
+				? "Double-click to toggle X-ray on your client"
+				: "Double-click to confirm - this runs for real on the live host";
 		}
 
 		return _severeConfirm && RequiresArmedConfirm( action )
@@ -1930,7 +1944,7 @@
 		foreach ( var p in _players )
 		{
 			rosterHash = HashCode.Combine( rosterHash, p.SteamId, p.Name, p.CanTarget,
-				HashCode.Combine( p.IsFrozen, p.GroupName, p.GroupOrder, p.Role ) );
+				HashCode.Combine( p.IsFrozen, p.GroupName, p.GroupOrder, p.Role, p.RankColorHex ) );
 		}
 
 		// Permission definitions can change without changing a player's rank label or roster order.
@@ -1965,6 +1979,12 @@
 			ResetPocketModal();
 		}
 
+		rosterHash = HashCode.Combine( rosterHash, StaffMenuHost.CanUseXray() );
+		if ( _pendingAction?.Key == "xray" && !StaffMenuHost.CanUseXray() )
+		{
+			CancelArgs();
+		}
+
 		_rosterHash = rosterHash;
 
 		// Drop a selection whose player left -- unless it was a manually typed Steam ID (off-roster target).
@@ -1988,7 +2008,7 @@
 			var d = StaffMenuHost.GetPlayerDetail( sid );
 			_detailHash = HashCode.Combine(
 				d.Health, d.MaxHealth, d.Armor, d.Level, d.Wallet, d.Bank, d.BaseSalary,
-				HashCode.Combine( d.Kills, d.Deaths, d.Job, d.JobColorHex, d.Role, d.PlayTimeMinutes ) );
+				HashCode.Combine( d.Kills, d.Deaths, d.Job, d.JobColorHex, d.Role, d.PlayTimeMinutes, d.MaxArmor, d.RankColorHex ) );
 
 			foreach ( var flag in StaffMenuHost.GetStateFlags( sid ) )
 			{
@@ -2061,6 +2081,10 @@
 		if ( action.DisplayTone == StaffActionDisplayTone.Money )
 		{
 			classes += " action-tone-money";
+		}
+		else if ( action.DisplayTone == StaffActionDisplayTone.Armor )
+		{
+			classes += " action-tone-armor";
 		}
 
 		// Read from the host, never from a local click flag -- a click echo would desync from the
@@ -2348,12 +2372,17 @@
 	// catalogue-driven strip (profile quick-sanctions, profile teleports).
 	private List<StaffAction> GetVisibleTabActions() =>
 		StaffMenuActions.All
-			.Where( a => a.Category == _activeTab && StaffMenuHost.CanView( a.PermissionId ) )
+			.Where( a => a.Category == _activeTab && StaffMenuHost.CanView( a.PermissionId ) && ( a.Key != "xray" || StaffMenuHost.CanUseXray() ) )
 			.OrderBy( a => a.Severity )
 			.ToList();
 
 	private static bool IsEnabled( StaffAction action, StaffMenuPlayer selected, bool hasTarget )
 	{
+		if ( action.Key == "xray" && !StaffMenuHost.CanUseXray() )
+		{
+			return false;
+		}
+
 		if ( action.TargetMode != StaffActionTarget.OtherPlayer )
 		{
 			return true;
@@ -2384,6 +2413,11 @@
 
 	private void BeginArgs( StaffAction action )
 	{
+		if ( action.Key == "xray" && !StaffMenuHost.CanUseXray() )
+		{
+			return;
+		}
+
 		if ( MoneyGrantNavigationLocked() )
 		{
 			return;
@@ -2471,7 +2505,7 @@
 
 	private void ConfirmArgs( StaffMenuPlayer selected )
 	{
-		if ( _pendingAction is not { } action )
+		if ( _pendingAction is not { } action || ( action.Key == "xray" && !StaffMenuHost.CanUseXray() ) )
 		{
 			return;
 		}

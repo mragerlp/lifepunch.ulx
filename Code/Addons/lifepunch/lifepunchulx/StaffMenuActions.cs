@@ -39,7 +39,8 @@ public enum StaffActionSeverity
 public enum StaffActionDisplayTone
 {
 	Severity,
-	Money
+	Money,
+	Armor
 }
 
 /// <summary>
@@ -47,7 +48,7 @@ public enum StaffActionDisplayTone
 /// RPC where one exists, else routes through the registered chat <c>ICommand</c> via
 /// <c>Chat.ExecuteCommandHost</c>. <see cref="LocalToggle"/> handles client-only affordances that
 /// DXRP exposes via keybind rather than a command (e.g. noclip move-mode). Every path is re-checked
-/// host-side; this catalog never carries authority.
+/// at the execution boundary; client-only commands retain their native local permission checks.
 /// </summary>
 public enum StaffDispatchKind
 {
@@ -59,7 +60,8 @@ public enum StaffDispatchKind
 	/// Currency grant. Its own kind rather than a chat command because DXRP exposes none: the
 	/// client sends a request and the HOST validates the caller's permission and executes.
 	/// </summary>
-	GiveMoney
+	GiveMoney,
+	LocalCommand
 }
 
 /// <summary>How the UI should render/validate an argument input.</summary>
@@ -133,6 +135,8 @@ public static class StaffMenuActions
 	private static StaffActionArg Duration( bool required ) =>
 		new( "duration", "Duration", StaffArgKind.Duration, required, "e.g. 1h, 1d, 7d, perm" );
 
+	// Rebuild catalog data from source during hotload instead of migrating old records.
+	[Sandbox.SkipHotload]
 	public static readonly IReadOnlyList<StaffAction> All = new List<StaffAction>
 	{
 		// ---- Moderation ----
@@ -192,7 +196,7 @@ public static class StaffMenuActions
 		// Addon-defined permission; granting Set Health does not grant Set Armor.
 		new( "setarmor", "Set Armor", CategoryCommands, "command.setarmor",
 			StaffDispatchKind.ChatCommand, "setarmor", StaffActionTarget.OtherPlayer, StaffActionSeverity.Severe,
-			new[] { new StaffActionArg( "amount", "Armor", StaffArgKind.Number, true, "e.g. 100; 0 clears armor" ) }, "shield", "Set player's armor within the server limit" ),
+			new[] { new StaffActionArg( "amount", "Armor", StaffArgKind.Number, true, "e.g. 100; 0 clears armor" ) }, "shield", "Set player's armor within the server limit", StaffActionDisplayTone.Armor ),
 
 		new( "setjob", "Set Job", CategoryCommands, "command.job.manage",
 			StaffDispatchKind.ChatCommand, "job", StaffActionTarget.OtherPlayer, StaffActionSeverity.Light,
@@ -256,7 +260,12 @@ public static class StaffMenuActions
 
 		new( "noclip", "Noclip", CategoryAbility, "ability.noclip",
 			StaffDispatchKind.LocalToggle, "noclip", StaffActionTarget.SelfOnly, StaffActionSeverity.Severe,
-			NoArgs, "flight", "Toggle noclip flight" )
+			NoArgs, "flight", "Toggle noclip flight" ),
+
+		// Each server owner grants this capability to their trusted staff ranks.
+		new( "xray", "X-ray", CategoryAbility, "command.xray",
+			StaffDispatchKind.LocalCommand, "xray", StaffActionTarget.SelfOnly, StaffActionSeverity.Severe,
+			NoArgs, "xray", "Toggle X-ray for yourself" )
 	};
 }
 

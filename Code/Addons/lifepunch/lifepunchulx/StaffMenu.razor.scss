@@ -1343,6 +1343,14 @@ $tone-gold: #a16207;
 		color: $blue;
 	}
 
+	.xray-skull {
+		width: 26px;
+		height: 26px;
+		min-width: 26px;
+		min-height: 26px;
+		background-tint: currentColor;
+	}
+
 	.action-label {
 		font-size: 14px;
 		font-weight: 700;
@@ -1439,6 +1447,21 @@ $tone-gold: #a16207;
 	.action-tone-money:active {
 		border-color: $success;
 		background-color: rgba($success, 0.26);
+	}
+
+	// Armor keeps DXRP's native HUD cyan; its Severe classification still guards confirmation.
+	.action-tone-armor:hover {
+		border-color: rgba($armor-hud, 0.68);
+		background-color: rgba($armor-hud, 0.18);
+	}
+
+	.action-tone-armor:hover .material-icons {
+		color: $armor-hud;
+	}
+
+	.action-tone-armor:active {
+		border-color: $armor-hud;
+		background-color: rgba($armor-hud, 0.26);
 	}
 
 	// TOGGLE ON -- a real runtime state, not a click echo. Held fully coloured for as long as
@@ -1907,6 +1930,15 @@ $tone-gold: #a16207;
 
 	.confirm-btn-danger:hover {
 		background-color: rgba($danger, 0.44);
+	}
+
+	.confirm-btn-armor {
+		border-color: $armor-hud;
+		background-color: rgba($armor-hud, 0.30);
+	}
+
+	.confirm-btn-armor:hover {
+		background-color: rgba($armor-hud, 0.44);
 	}
 
 	// GIVE-MONEY polish -- the status lane is reserved BEFORE submission: validation text, the armed
