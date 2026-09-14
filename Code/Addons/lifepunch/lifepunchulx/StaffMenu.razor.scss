@@ -3534,7 +3534,7 @@ $tone-gold: #a16207;
 		min-height: 0;
 		width: 100%;
 		justify-content: space-between;
-		padding: 12px 0 14px;
+		padding: 16px 0 10px;
 		gap: 14px;
 	}
 
@@ -3546,6 +3546,8 @@ $tone-gold: #a16207;
 	}
 
 	.accent-section-title {
+		position: relative;
+		top: -8px;
 		width: 100%;
 		justify-content: center;
 		text-align: center;
