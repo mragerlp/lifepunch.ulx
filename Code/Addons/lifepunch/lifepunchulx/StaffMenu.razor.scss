@@ -3505,7 +3505,7 @@ $tone-gold: #a16207;
 	.accent-secondary-actions > .settings-btn {
 		flex-direction: row;
 		flex-shrink: 0;
-		min-height: 36px;
+		min-height: 32px;
 		padding: 0 8px;
 		gap: 6px;
 		font-size: 12px;
@@ -3518,25 +3518,32 @@ $tone-gold: #a16207;
 		align-items: stretch;
 		flex: 1 1 0;
 		min-height: 0;
-		gap: 16px;
+		width: 90%;
+		align-self: center;
+		padding: 12px 0 14px;
+		gap: 14px;
 	}
 
 	.accent-preview-panel {
 		flex-direction: column;
-		flex: 0 0 208px;
+		flex: 0 0 184px;
 		min-width: 0;
 		gap: 8px;
 	}
 
 	.accent-section-title {
-		font-size: 13px;
+		width: 100%;
+		justify-content: center;
+		text-align: center;
+		font-size: 12px;
 		font-weight: 700;
 		color: $text;
 	}
 
 	.accent-command-preview-area {
 		flex-direction: column;
-		align-items: flex-start;
+		align-items: center;
+		width: 100%;
 		flex-shrink: 0;
 		pointer-events: none;
 	}
@@ -3544,27 +3551,27 @@ $tone-gold: #a16207;
 	.accent-preview-samples {
 		flex-direction: row;
 		align-items: center;
-		gap: 12px;
+		gap: 10px;
 		pointer-events: none;
 	}
 
 	.accent-command-preview {
 		position: relative;
 		flex: 0 0 auto;
-		width: 116px;
-		height: 72px;
-		min-height: 72px;
-		max-height: 72px;
-		padding: 7px;
+		width: 102px;
+		height: 64px;
+		min-height: 64px;
+		max-height: 64px;
+		padding: 6px;
 		pointer-events: none;
 	}
 
 	.accent-command-preview .material-icons {
-		font-size: 24px;
+		font-size: 22px;
 	}
 
 	.accent-command-preview .action-label {
-		font-size: 12px;
+		font-size: 11px;
 	}
 
 	.accent-command-preview,
@@ -3578,8 +3585,8 @@ $tone-gold: #a16207;
 		flex-direction: column;
 		justify-content: center;
 		flex: 0 0 auto;
-		width: 80px;
-		height: 72px;
+		width: 70px;
+		height: 64px;
 		gap: 6px;
 		pointer-events: none;
 	}
@@ -3587,24 +3594,24 @@ $tone-gold: #a16207;
 	.accent-navigation-preview-header {
 		flex-direction: row;
 		align-items: center;
-		gap: 12px;
+		gap: 10px;
 	}
 
 	.accent-wordmark-preview {
-		font-size: 20px;
+		font-size: 18px;
 		font-weight: 800;
 	}
 
 	.accent-navigation-preview-header .material-icons {
-		font-size: 18px;
+		font-size: 16px;
 	}
 
 	.accent-tab-preview {
 		align-items: center;
 		justify-content: center;
 		align-self: flex-start;
-		height: 28px;
-		width: 80px;
+		height: 25px;
+		width: 70px;
 		border-bottom: 2px solid $blue;
 		font-size: 10px;
 		font-weight: 700;
@@ -3613,9 +3620,9 @@ $tone-gold: #a16207;
 
 	.accent-picker-inline {
 		flex-direction: column;
-		flex: 0 0 240px;
+		flex: 0 0 212px;
 		min-height: 0;
-		gap: 12px;
+		gap: 10px;
 	}
 
 	.accent-picker-inline ColorSaturationValueControl {
@@ -3627,9 +3634,9 @@ $tone-gold: #a16207;
 	}
 
 	.accent-picker-inline ColorHueControl {
-		flex: 0 0 16px;
+		flex: 0 0 14px;
 		width: 100%;
-		height: 16px;
+		height: 14px;
 		margin: 0;
 	}
 
@@ -3724,27 +3731,27 @@ $tone-gold: #a16207;
 		flex-direction: row;
 		align-items: center;
 		flex-shrink: 0;
-		gap: 12px;
+		gap: 10px;
 	}
 
 	.accent-preview-slot {
 		flex-direction: column;
 		align-items: center;
 		flex-shrink: 0;
-		width: 40px;
+		width: 36px;
 	}
 
 	.accent-preview {
 		flex-shrink: 0;
-		width: 40px;
-		height: 40px;
+		width: 36px;
+		height: 36px;
 		border: 1px solid rgba($text, 0.24);
 		border-radius: 7px;
 	}
 
 	.accent-preview-applied {
-		width: 40px;
-		height: 40px;
+		width: 36px;
+		height: 36px;
 	}
 
 	.accent-state-copy {

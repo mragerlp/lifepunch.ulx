@@ -1445,7 +1445,7 @@
 								}
 								else if ( arg.Name == "name" )
 								{
-									<TextEntry class="arg-input" Placeholder="@arg.Placeholder" Value:bind="@_name"/>
+									<TextEntry class="arg-input" Placeholder="@arg.Placeholder" Value:bind="@RpNameInput"/>
 								}
 								else
 								{
@@ -1534,7 +1534,7 @@
 						   content height stays present when the first click arms, so the second click keeps
 						   the same Confirm hit target without a guessed spacer height. *@
 						@if ( pending.Dispatch != StaffDispatchKind.GiveMoney
-						      && ( pending.Category == StaffMenuActions.CategoryModeration || IsToggleAction( pending ) || ( _severeConfirm && requiredArgsComplete ) ) )
+						      && ( pending.Category == StaffMenuActions.CategoryModeration || pending.Key == "forcerpname" || IsToggleAction( pending ) || ( _severeConfirm && requiredArgsComplete ) ) )
 						{
 							<div class="grant-confirm">
 								@* The restatement is per-action: every Severe action (and Jail) restates what is about to run
@@ -1816,7 +1816,8 @@
 	private static bool UsesDoubleClickConfirm( StaffAction action ) =>
 		action.Category == StaffMenuActions.CategoryModeration
 		|| IsRedAction( action ) || action.Dispatch == StaffDispatchKind.GiveMoney
-		|| action.Key == "setarmor" || action.Key == "freeze" || action.Key == "sethealth" || action.Key == "xray";
+		|| action.Key == "setarmor" || action.Key == "freeze" || action.Key == "sethealth" || action.Key == "xray"
+		|| action.Key == "forcerpname";
 
 	// Every timed action must enter the armed form, including Moderation without arguments.
 	private static bool RequiresArmedConfirm( StaffAction action ) =>
@@ -1912,19 +1913,41 @@
 		return $"{(enabled ? "Disable" : "Enable")} {action.Label}";
 	}
 
-	private string PendingActionPhrase( StaffAction action ) =>
-		IsToggleAction( action ) ? PendingActionLabel( action ) : $"Run {action.Label}";
+	private string PendingActionPhrase( StaffAction action )
+	{
+		if ( action.Key == "forcerpname" )
+		{
+			return string.IsNullOrWhiteSpace( _name )
+				? "Clear the forced RP name"
+				: $"Set RP name to \"{_name.Trim()}\"";
+		}
 
-	private string ConfirmButtonLabel( StaffAction action ) =>
-		IsToggleAction( action )
+		return IsToggleAction( action ) ? PendingActionLabel( action ) : $"Run {action.Label}";
+	}
+
+	private string ConfirmButtonLabel( StaffAction action )
+	{
+		if ( action.Key == "forcerpname" )
+		{
+			var label = string.IsNullOrWhiteSpace( _name ) ? "Clear RP Name" : action.Label;
+			return _severeConfirm ? $"Yes, {label}" : $"Confirm {label}";
+		}
+
+		return IsToggleAction( action )
 			? ( _severeConfirm ? $"Yes, {PendingActionLabel( action )}" : PendingActionLabel( action ) )
 			: ( _severeConfirm ? ( action.Dispatch == StaffDispatchKind.GiveMoney ? "Yes, give the money" : $"Yes, {action.Label}" ) : $"Confirm {action.Label}" );
+	}
 
 	private string ConfirmActionHint( StaffAction action )
 	{
 		if ( !HasRequiredToggleState( action ) )
 		{
 			return "Waiting for the player's current state before confirming.";
+		}
+
+		if ( action.Key == "forcerpname" )
+		{
+			return "Double-click to confirm this RP name change.";
 		}
 
 		if ( IsToggleAction( action ) )
@@ -1995,6 +2018,22 @@
 	private string _duration = "";
 	private string _amount = "";
 	private string _name = "";
+	private string RpNameInput
+	{
+		get => _name;
+		set
+		{
+			value ??= "";
+			if ( string.Equals( _name, value, StringComparison.Ordinal ) )
+			{
+				return;
+			}
+
+			_name = value;
+			InvalidateArmedConfirm();
+			StateHasChanged();
+		}
+	}
 	private string _job = "";
 	private string _jobFilter = "";
 	private bool _jobDropdownOpen;
