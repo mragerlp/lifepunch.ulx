@@ -21,8 +21,8 @@
 
 <root class="@GetRootClass()" onmousedown="@ReleaseTextEntryFocus">
 	<div class="window">
-		<div class="header">
-			<div class="title">
+		<div class="ulx-shell-header">
+			<div class="ulx-shell-title">
 				<div class="title-stack">
 					<span class="title-primary brand-wordmark"><span class="wordmark-life">lifepunch</span><span class="ulx" style="@AccentWordmarkStyle( _appliedAccentColor )">.ulx</span></span>
 					<span class="title-sub">ULX CONSOLE</span>
@@ -35,7 +35,7 @@
 					<i class="material-icons">language</i>
 					<span>@(_websiteCopied ? "Link copied!" : StaffMenuHost.NetworkIdentifier)</span>
 				</button>
-				<button class="lp-ui-chrome-btn cog chrome-cog @( _activeTab == TabSettings ? "chrome-active" : "" )" style="@HeaderCogAccentStyle()" tooltip="Settings" onclick="@OpenSettings">
+				<button class="lp-ui-chrome-btn cog chrome-cog @( (_activeTab == TabSettings) ? "chrome-active" : "" )" style="@HeaderCogAccentStyle()" tooltip="Settings" onclick="@OpenSettings">
 					<i class="material-icons">settings</i>
 				</button>
 				<button class="lp-ui-chrome-btn close chrome-close @( MoneyGrantNavigationLocked() ? "control-disabled" : "" )"
@@ -46,7 +46,7 @@
 			</div>
 		</div>
 
-		<div class="tabs">
+		<div class="ulx-shell-tabs">
 			@foreach ( var category in StaffMenuActions.Categories )
 			{
 				<button class="@TabClass( category )" style="@TopTabAccentStyle( category )"
@@ -279,10 +279,10 @@
 					@foreach ( var name in filteredWaypoints )
 					{
 						<div class="wp-row">
-							<i class="material-icons">place</i>
+							<i class="material-icons" style="@AppliedGlyphStyle()">place</i>
 							<span class="wp-name">@name</span>
 							<button class="wp-go-row" tooltip="Teleport here" onclick="@(() => GoToWaypoint( name ))">
-								<i class="material-icons">my_location</i> Go
+								<i class="material-icons" style="@AppliedGlyphStyle()">my_location</i> Go
 							</button>
 							@if ( StaffMenuHost.CanEditWaypoints() )
 							{
@@ -435,8 +435,7 @@
 				</div>
 
 				<div class="settings-cols">
-					@* Network and Appearance share the former left two columns; Diagnostics and
-					   Player & Staff Management keep their existing right-column width and position. *@
+					@* Network and the compact Appearance card remain beside Diagnostics. *@
 					<div class="settings-col settings-col-network">
 						<div class="settings-group settings-network">
 							<div class="settings-label">Network Management</div>
@@ -489,45 +488,8 @@
 
 						<div class="settings-group settings-appearance">
 							<div class="settings-label">Appearance</div>
-							<div class="settings-hint">Preview icon and navigation accents. Status colors stay fixed.</div>
-
+							<div class="settings-hint">Customize icon and navigation accents. Status colors stay fixed.</div>
 							<div class="accent-palette">
-								<div class="accent-command-preview-area">
-									<div class="accent-preview-samples">
-										<div class="accent-navigation-preview">
-											<div class="accent-navigation-preview-header">
-												<span class="accent-wordmark-preview" style="@AccentWordmarkStyle( _accentHolder.Color )">.ulx</span>
-												<i class="material-icons" style="color: @AccentDraftHex()">settings</i>
-											</div>
-											<div class="accent-tab-preview" style="border-bottom-color: @AccentDraftHex()">
-												<span>Moderation</span>
-											</div>
-										</div>
-										<div class="action-btn accent-command-preview">
-											<i class="material-icons" style="color: @AccentDraftHex()">@( StaffMenuActions.All.First( action => action.Key == "god" ).Icon )</i>
-											<span class="action-label">God Mode</span>
-										</div>
-									</div>
-								</div>
-
-								<div class="accent-actions">
-									<div class="accent-secondary-actions">
-										<button type="button" class="settings-btn @( CanCancelAccent() ? "accent-cancel" : "accent-cancel-inert control-disabled accent-action-disabled" )"
-										        tooltip="@( CanCancelAccent() ? "Discard color changes" : "Nothing to discard" )"
-										        onclick="@CancelAccentDraft">
-											<i class="material-icons">close</i> Cancel
-										</button>
-										<button type="button" class="settings-btn accent-reset" tooltip="Restore the default blue accent" onclick="@ResetAccent">
-											<i class="material-icons">restart_alt</i> Reset
-										</button>
-									</div>
-									<button type="button" class="settings-btn @( CanApplyAccent() ? "accent-apply" : "accent-apply-inert control-disabled accent-action-disabled" )"
-									        tooltip="@( _accentHexInvalid ? "Enter a valid hex color" : ( CanApplyAccent() ? "Apply the selected icon and navigation accent" : "Selected and applied colors already match" ) )"
-									        onclick="@ApplyAccent">
-										<i class="material-icons">check</i> Apply accent
-									</button>
-								</div>
-
 								<div class="accent-palette-summary">
 									<div class="accent-state-row">
 										<div class="accent-preview-slot">
@@ -554,10 +516,19 @@
 											</button>
 										</div>
 									</div>
+									<div class="accent-recent">
+										<div class="accent-state-label">Recent</div>
+										<div class="accent-recent-colors">
+											@foreach ( var color in _recentAccentColors )
+											{
+												<button type="button" class="accent-recent-color" style="background-color: @color.Hex" tooltip="@( $"Select recently applied {color.Hex}" )" onclick="@(() => SelectRecentAccent( color ))"></button>
+											}
+										</div>
+									</div>
 									<div class="accent-hex-field">
 										<div class="accent-hex-label">Hex color</div>
 										<div class="accent-hex-controls">
-											<TextEntry class="arg-input accent-hex-input @( _accentHexInvalid ? "accent-hex-invalid" : "" )"
+											<TextEntry class="@( "arg-input accent-hex-input" + ( _accentHexInvalid ? " accent-hex-invalid" : "" ) )"
 											           Placeholder="#1689FF" Value:bind="@AccentHexInput"/>
 											<button type="button" class="settings-btn accent-hex-confirm @( CanApplyAccent() ? "accent-apply" : "accent-apply-inert control-disabled accent-action-disabled" )"
 											        tooltip="@( _accentHexInvalid ? "Enter a valid hex color" : "Apply this hex color" )"
@@ -571,13 +542,50 @@
 										</div>
 									</div>
 								</div>
-
-								@if ( AccentProperty is not null )
-								{
-									<div class="accent-picker-inline">
-										<ColorPickerControl Property=@AccentProperty/>
+								<div class="accent-picker-inline">
+									@if ( AccentProperty is not null )
+									{
+										<ColorSaturationValueControl Property=@AccentProperty/>
+										<ColorHueControl Property=@AccentProperty/>
+									}
+								</div>
+								<div class="accent-preview-panel">
+									<div class="accent-section-title">Preview</div>
+									<div class="accent-command-preview-area">
+										<div class="accent-preview-samples">
+											<div class="accent-navigation-preview">
+												<div class="accent-navigation-preview-header">
+													<span class="accent-wordmark-preview" style="@AccentWordmarkStyle( _accentHolder.Color )">.ulx</span>
+													<i class="material-icons" style="color: @AccentDraftHex()">settings</i>
+												</div>
+												<div class="accent-tab-preview" style="border-bottom-color: @AccentDraftHex()">
+													<span>Moderation</span>
+												</div>
+											</div>
+											<div class="action-btn accent-command-preview">
+												<i class="material-icons" style="color: @AccentDraftHex()">@( StaffMenuActions.All.First( action => action.Key == "god" ).Icon )</i>
+												<span class="action-label">God Mode</span>
+											</div>
+										</div>
 									</div>
-								}
+									<div class="accent-actions">
+										<div class="accent-secondary-actions">
+											<button type="button" class="settings-btn @( CanCancelAccent() ? "accent-cancel" : "accent-cancel-inert control-disabled accent-action-disabled" )"
+											        tooltip="@( CanCancelAccent() ? "Discard color changes" : "Nothing to discard" )"
+											        onclick="@CancelAccentDraft">
+												<i class="material-icons">close</i> Cancel
+											</button>
+											<button type="button" class="settings-btn accent-reset" tooltip="Restore the default blue accent" onclick="@ResetAccent">
+												<i class="material-icons">restart_alt</i> Reset
+											</button>
+										</div>
+										<button type="button" class="settings-btn @( CanApplyAccent() ? "accent-apply" : "accent-apply-inert control-disabled accent-action-disabled" )"
+										        tooltip="@( _accentHexInvalid ? "Enter a valid hex color" : ( CanApplyAccent() ? "Apply the selected icon and navigation accent" : "Selected and applied colors already match" ) )"
+										        onclick="@ApplyAccent">
+											<i class="material-icons">check</i> Apply accent
+										</button>
+									</div>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -676,7 +684,7 @@
 		}
 		else
 		{
-		<div class="body">
+		<div class="ulx-shell-body">
 			<div class="players @( _playersCollapsed ? "players-collapsed" : "" )">
 				@if ( _playersCollapsed )
 				{
@@ -1276,7 +1284,7 @@
 						: pending.TargetMode == StaffActionTarget.OtherPlayer
 						? ( hasTarget ? selected.Name : "No target selected" )
 						: ( pending.TargetMode == StaffActionTarget.SelfOnly ? "Self" : "Server" );
-					<div class="arg-form @( pending.Dispatch == StaffDispatchKind.GiveMoney ? "arg-form-money" : pending.Key == "setjob" ? "arg-form-setjob" : "" )">
+					<div class="arg-form @( pending.Dispatch == StaffDispatchKind.GiveMoney ? ( moneyLocked ? "arg-form-money arg-form-money-receipt" : "arg-form-money" ) : pending.Key == "setjob" ? "arg-form-setjob" : "" )">
 						<div class="arg-form-head">
 							<div class="arg-context">
 								<span class="arg-action">@PendingActionLabel( pending )</span>
@@ -1489,11 +1497,9 @@
 							</div>
 							@if ( moneyState == StaffMoneyGrantState.Succeeded )
 							{
-								@* TERMINAL SUCCESS -- the receipt stands above; the one prominent exit is the existing close
-								   path (CloseMenu -> StaffMenuHost.RequestClose). The header X still returns to the grid;
-								   neither path can send a second grant from this instance. *@
-								<button class="confirm-btn grant-close-btn" tooltip="Close the console" onclick="@CloseMenu">
-									<i class="material-icons">close</i> Close Menu
+								@* Close the completed grant through the same guarded form-reset path as its header X. *@
+								<button class="confirm-btn grant-close-btn" tooltip="Return to Commands" onclick="@CancelArgs">
+									<i class="material-icons">close</i> Close Give Money
 								</button>
 							}
 							@if ( moneyState == StaffMoneyGrantState.Unknown )
@@ -1564,8 +1570,11 @@
 					@foreach ( var action in visibleActions )
 					{
 						var enabled = IsEnabled( action, selected, hasTarget );
-							<button class="action-btn @( ActionStateClasses( action, enabled ) )"
-							        style="@ActionRestingAccentStyle( action, enabled )"
+						var toggleOn = action.Key == "freeze"
+							? hasTarget && selected.IsFrozen
+							: SelfToggleActionKeys.Contains( action.Key ) && StaffMenuHost.IsSelfToggleOn( action.Key );
+							<button class="action-btn @( ActionStateClasses( action, enabled, toggleOn ) )"
+							        style="@ActionRestingAccentStyle( action, enabled, toggleOn )"
 						        tooltip="@( string.IsNullOrEmpty( action.Tooltip ) ? action.Label : action.Tooltip )"
 						        onclick="@(() => OnActionClick( action, selected, enabled ))">
 							@if ( action.Key == "xray" )
@@ -2190,7 +2199,7 @@
 	/// Severity, display-tone, and live-state classes for one action card, returned as ONE string: the transpiler
 	/// cannot take two adjacent @() expressions in a single attribute.
 	/// </summary>
-	private string ActionStateClasses( StaffAction action, bool enabled )
+	private string ActionStateClasses( StaffAction action, bool enabled, bool toggleOn )
 	{
 		var classes = enabled ? "" : "control-disabled action-disabled-state";
 		classes += $" {SeverityClass( action.Severity )}";
@@ -2218,9 +2227,17 @@
 
 		// Read from the host, never from a local click flag -- a click echo would desync from the
 		// HUD the moment anything else changed the state (death, respawn, another admin, reconnect).
-		if ( SelfToggleActionKeys.Contains( action.Key ) && StaffMenuHost.IsSelfToggleOn( action.Key ) )
+		if ( toggleOn )
 		{
-			classes += action.Key == "cloak" ? " action-toggle-on action-cloak-on" : " action-toggle-on";
+			classes += " action-toggle-on";
+			if ( action.Key == "cloak" )
+			{
+				classes += " action-cloak-on";
+			}
+			else if ( action.Key == "freeze" )
+			{
+				classes += " action-freeze-on";
+			}
 		}
 
 		return classes.Trim();
@@ -3534,6 +3551,8 @@
 		public Color Color { get; set; } = Color.White;
 	}
 
+	// Only applied ULX accents enter this session history; dragging does not flood it.
+	private static readonly List<Color> _recentAccentColors = new() { DefaultAccentColor };
 	private readonly AccentHolder _accentHolder = new();
 	private SerializedObject? _accentObject;
 	private SerializedProperty? _accentProperty;
@@ -3689,7 +3708,7 @@
 		=> $"color: {(collapsed ? "#8d8f90" : AppliedAccentHex())};";
 
 	private string HeaderCogAccentStyle()
-		=> $"color: {(IsDefaultAccent( _appliedAccentColor ) ? (_activeTab == TabSettings ? "#55aaff" : "#8d8f90") : AppliedAccentHex())};";
+		=> $"color: {(IsDefaultAccent( _appliedAccentColor ) ? ((_activeTab == TabSettings) ? "#55aaff" : "#8d8f90") : AppliedAccentHex())};";
 
 	private string PlayerRowAccentStyle( long steamId )
 		=> $"border-color: {((_showProfile ? _profileSteamId : _selectedSteamId) == steamId ? AppliedAccentHex() : "transparent")};";
@@ -3768,10 +3787,25 @@
 			return;
 		}
 
+		RememberAccent( _appliedAccentColor );
 		_appliedAccentColor = OpaqueAccent( _accentHolder.Color );
+		RememberAccent( _appliedAccentColor );
 		SyncAccentDraft();
 		StateHasChanged();
 	}
+
+	private static void RememberAccent( Color color )
+	{
+		color = OpaqueAccent( color );
+		_recentAccentColors.RemoveAll( entry => string.Equals( entry.Hex, color.Hex, StringComparison.OrdinalIgnoreCase ) );
+		_recentAccentColors.Insert( 0, color );
+		if ( _recentAccentColors.Count > 10 )
+		{
+			_recentAccentColors.RemoveRange( 10, _recentAccentColors.Count - 10 );
+		}
+	}
+
+	private void SelectRecentAccent( Color color ) => AccentHexInput = color.Hex;
 
 	private void CancelAccentDraft()
 	{
@@ -3782,12 +3816,14 @@
 	/// <summary>Back to the default accent, applied at once; the preview is discarded with it.</summary>
 	private void ResetAccent()
 	{
+		RememberAccent( _appliedAccentColor );
 		_appliedAccentColor = DefaultAccentColor;
+		RememberAccent( _appliedAccentColor );
 		SyncAccentDraft();
 		StateHasChanged();
 	}
 
-	private static string ActionRestingAccentStyle( StaffAction action, bool enabled )
+	private static string ActionRestingAccentStyle( StaffAction action, bool enabled, bool toggleOn )
 	{
 		if ( !enabled || IsDefaultAccent( _appliedAccentColor ) )
 		{
@@ -3796,7 +3832,7 @@
 
 		// Inherit the resting accent from the card so semantic hover colors can override it.
 		// Live toggles keep their status treatment instead of the configurable accent.
-		if ( SelfToggleActionKeys.Contains( action.Key ) && StaffMenuHost.IsSelfToggleOn( action.Key ) )
+		if ( toggleOn )
 		{
 			return "";
 		}

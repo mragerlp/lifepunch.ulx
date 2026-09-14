@@ -486,6 +486,12 @@ $observe-ranks-accent: hotpink;
 		justify-content: flex-end;
 	}
 
+	.observe-sanctions-footer {
+		flex-direction: row;
+		justify-content: flex-end;
+		flex-shrink: 0;
+	}
+
 	.observe-route-button,
 	.observe-direct-load {
 		flex-direction: row;

@@ -439,36 +439,37 @@
 						   below are driven by SanctionsReadState instead, so the pane says one thing. *@
 					</div>
 				</div>
-				<div class="observe-sanctions-actions">
-					@if ( _sanctionsSubjectId != 0 )
-					{
-						@if ( SanctionsSubjectIsOnline() )
+				@if ( _sanctionsSubjectId != 0 || OnReturnToProfile is not null )
+				{
+					<div class="observe-sanctions-actions">
+						@if ( _sanctionsSubjectId != 0 )
 						{
-							<button class="observe-route-button observe-route-primary" onclick="@OpenSelectedPlayerModeration" tooltip="Open this player's Moderation profile and sanction actions">
-								<i class="material-icons">gavel</i><span>Open Moderation</span>
+							@if ( SanctionsSubjectIsOnline() )
+							{
+								<button class="observe-route-button observe-route-primary" onclick="@OpenSelectedPlayerModeration" tooltip="Open this player's Moderation profile and sanction actions">
+									<i class="material-icons">gavel</i><span>Open Moderation</span>
+								</button>
+							}
+							@if ( subjectState is SanctionsReadState.Failed or SanctionsReadState.Unanswered )
+							{
+								<button class="observe-route-button" onclick="@RetrySanctionsRead" tooltip="Ask the host for this record again (never changes it)">
+									<i class="material-icons">refresh</i><span>Retry read</span>
+								</button>
+							}
+							<button class="observe-route-button" onclick="@ClearSanctionsSubject">
+								<i class="material-icons">person_search</i><span>Change player</span>
 							</button>
 						}
-						@if ( subjectState is SanctionsReadState.Failed or SanctionsReadState.Unanswered )
+						@if ( OnReturnToProfile is not null )
 						{
-							<button class="observe-route-button" onclick="@RetrySanctionsRead" tooltip="Ask the host for this record again (never changes it)">
-								<i class="material-icons">refresh</i><span>Retry read</span>
+							<button class="observe-route-button" onclick="@ReturnToProfile" tooltip="Back to the player profile this view was opened from">
+								<i class="material-icons">arrow_back</i><span>Return to profile</span>
 							</button>
 						}
-						<button class="observe-route-button" onclick="@ClearSanctionsSubject">
-							<i class="material-icons">person_search</i><span>Change player</span>
-						</button>
-					}
-					@if ( OnReturnToProfile is not null )
-					{
-						<button class="observe-route-button" onclick="@ReturnToProfile" tooltip="Back to the player profile this view was opened from">
-							<i class="material-icons">arrow_back</i><span>Return to profile</span>
-						</button>
-					}
-					<button class="observe-route-button observe-route-portal" onclick="@CopyPortalSanctionsLink" tooltip="Copy https://dxrp.net/portal/sanctions">
-						<i class="material-icons">@( _portalLinkCopied ? "check" : "content_copy" )</i>
-						<span>@( _portalLinkCopied ? "Portal link copied" : "Copy Portal link" )</span>
-					</button>
-				</div>
+
+					</div>
+				}
+
 				@if ( _sanctionsSubjectId == 0 )
 				{
 					var subjectMatches = SanctionsSubjectMatches();
@@ -621,6 +622,12 @@
 					}
 
 				}
+			</div>
+			<div class="observe-sanctions-footer">
+				<button class="observe-route-button observe-route-portal" onclick="@CopyPortalSanctionsLink" tooltip="Copy https://dxrp.net/portal/sanctions">
+					<i class="material-icons">@( _portalLinkCopied ? "check" : "content_copy" )</i>
+					<span>@( _portalLinkCopied ? "Portal link copied" : "Copy Portal link" )</span>
+				</button>
 			</div>
 		</div>
 	}
