@@ -432,7 +432,7 @@
 									<button class="settings-btn save settings-save-primary @( WebsiteSaveClasses() )"
 									        tooltip="@( StaffMenuHost.WebsiteWriteIsPending ? "Waiting for the server API result" : ( WebsiteDraftIsDirty() ? "Save the network website link" : "No website changes to save" ) )"
 									        onclick="@SaveWebsiteFromInput">
-										<i class="material-icons">save</i> Save
+										<i class="material-icons @( StaffMenuHost.WebsiteWriteIsPending ? "settings-save-spinner" : "" )">@( StaffMenuHost.WebsiteWriteIsPending ? "sync" : ( _websiteSaveConfirmed ? "check" : "save" ) )</i> @WebsiteSaveLabel()
 									</button>
 								</div>
 
@@ -451,10 +451,11 @@
 										<span class="settings-current-text">@( StaffMenuHost.WebsiteReadIsUncertain ? "Website status unavailable — the server store did not return a confirmed answer." : "No website set yet — leave the field empty and Save to clear it." )</span>
 									}
 								</div>
-								@if ( !string.IsNullOrWhiteSpace( StaffMenuHost.WebsiteWriteMessage ) )
+								@if ( !StaffMenuHost.WebsiteWriteIsPending && !StaffMenuHost.WebsiteWriteSucceeded
+								      && !string.IsNullOrWhiteSpace( StaffMenuHost.WebsiteWriteMessage ) )
 								{
-									<div class="settings-write-result @( WebsiteWriteResultClass() )">
-										<i class="material-icons">@( StaffMenuHost.WebsiteWriteIsPending ? "sync" : ( StaffMenuHost.WebsiteWriteSucceeded ? "check_circle" : "error" ) )</i>
+									<div class="settings-write-result settings-write-failed">
+										<i class="material-icons">error</i>
 										<span>@StaffMenuHost.WebsiteWriteMessage</span>
 									</div>
 								}
@@ -1677,6 +1678,11 @@
 	private string _websiteDraftBaseline = "";
 	private bool _websiteDraftTouched;
 	private int _lastSettingsVersion;
+	private int _lastWebsiteWriteVersion;
+	private bool _websiteWriteAwaitingResult;
+	private bool _websiteSaveConfirmed;
+	private string _websiteSubmittedDraft = "";
+	private RealTimeSince _websiteSaveConfirmedAge;
 	private bool _websiteCopied;
 	private long _copiedSteamId;
 	private bool _currentCopied;
@@ -1752,7 +1758,7 @@
 		action.Key is "god" or "cloak" or "incognito" or "noclip" or "freeze" or "xray";
 
 	private bool HasRequiredToggleState( StaffAction action ) =>
-		!IsToggleAction( action ) || action.Key == "xray" || _pendingToggleState.HasValue;
+		!IsToggleAction( action ) || _pendingToggleState.HasValue;
 
 	private static string ToggleStateLabel( bool? state ) => state switch
 	{
@@ -1933,10 +1939,17 @@
 	private string _jobFilter = "";
 	private bool _jobDropdownOpen;
 
+	// Set only by the local host; a shared HUD is never an owned menu root.
+	internal GameObject? OwnedMenuRoot { get; set; }
+
 	// Use the shared LifePunch menu combat lock so UI clicks cannot fire, use world entities
 	// or switch equipment while the menu is open.
 	protected override void OnEnabled()
 	{
+		// Reopening must not replay an earlier write's success.
+		_lastWebsiteWriteVersion = StaffMenuHost.WebsiteWriteVersion;
+		_websiteWriteAwaitingResult = false;
+		_websiteSaveConfirmed = false;
 		LifePunchMenuInputBlock.NotifyMenuOpened();
 	}
 
@@ -1974,6 +1987,7 @@
 		SenseJobFilterChange();
 		SenseJobScrollEnd();
 		SyncWebsiteDraftFromHost();
+		SyncWebsiteSaveFeedback();
 
 		// Refresh on the fixed cadence to keep volatile reads from replaying menu hover states.
 		if ( _sinceRosterRefresh >= RosterRefreshInterval )
@@ -2105,7 +2119,7 @@
 
 	private static readonly string[] SelfToggleActionKeys =
 	{
-		"god", "cloak", "incognito", "noclip"
+		"god", "cloak", "incognito", "noclip", "xray"
 	};
 
 	private static readonly string[] SupplementalPermissionIds =
@@ -3476,7 +3490,7 @@
 			return;
 		}
 
-		StaffMenuHost.RequestClose();
+		StaffMenuHost.RequestClose( this );
 	}
 
 	/// <summary>Collapse / expand the Online Players sidebar to a slim rail.</summary>
@@ -3933,7 +3947,45 @@
 			classes += " control-disabled settings-save-disabled";
 		}
 
+		if ( StaffMenuHost.WebsiteWriteIsPending )
+			classes += " settings-save-pending";
+		else if ( _websiteSaveConfirmed )
+			classes += " settings-save-confirmed";
+
 		return classes.Trim();
+	}
+
+	private string WebsiteSaveLabel()
+	{
+		if ( StaffMenuHost.WebsiteWriteIsPending )
+			return "Saving...";
+		if ( !_websiteSaveConfirmed )
+			return "Save";
+		return StaffMenuHost.WebsiteSaveConfirmationLabel;
+	}
+
+	private bool WebsiteDraftMatchesSubmission() => string.Equals(
+		( _websiteDraft ?? string.Empty ).Trim(), _websiteSubmittedDraft, StringComparison.Ordinal );
+
+	private void SyncWebsiteSaveFeedback()
+	{
+		if ( _websiteSaveConfirmed && ( _websiteSaveConfirmedAge >= 2f || !WebsiteDraftMatchesSubmission() ) )
+			_websiteSaveConfirmed = false;
+
+		var version = StaffMenuHost.WebsiteWriteVersion;
+		if ( version == _lastWebsiteWriteVersion )
+			return;
+
+		_lastWebsiteWriteVersion = version;
+		if ( !_websiteWriteAwaitingResult || StaffMenuHost.WebsiteWriteIsPending )
+			return;
+
+		// Only a new terminal result for this submission earns button confirmation.
+		// Settings reads never advance WebsiteWriteVersion. The host correlates write replies.
+		_websiteWriteAwaitingResult = false;
+		_websiteSaveConfirmed = StaffMenuHost.WebsiteWriteSucceeded && WebsiteDraftMatchesSubmission();
+		if ( _websiteSaveConfirmed )
+			_websiteSaveConfirmedAge = 0;
 	}
 
 	/// <summary>Save the typed network website URL (host re-checks the owner grant). Empty clears it.</summary>
@@ -3945,11 +3997,21 @@
 		}
 
 		_websiteDraftTouched = true;
-		StaffMenuHost.SaveWebsite( ( _websiteDraft ?? string.Empty ).Trim() );
+		_websiteSubmittedDraft = ( _websiteDraft ?? string.Empty ).Trim();
+		_lastWebsiteWriteVersion = StaffMenuHost.WebsiteWriteVersion;
+		_websiteWriteAwaitingResult = true;
+		_websiteSaveConfirmed = false;
+		StaffMenuHost.SaveWebsite( _websiteSubmittedDraft );
+		SyncWebsiteSaveFeedback();
+		StateHasChanged();
 	}
 
 	private void SeedWebsiteDraft()
 	{
+		// Returning to Settings must not replay a prior confirmation.
+		_lastWebsiteWriteVersion = StaffMenuHost.WebsiteWriteVersion;
+		_websiteWriteAwaitingResult = false;
+		_websiteSaveConfirmed = false;
 		_websiteDraft = StaffMenuHost.WebsiteUrl;
 		_websiteDraftBaseline = _websiteDraft;
 		_websiteDraftTouched = false;
@@ -3999,16 +4061,6 @@
 		StaffMoneyGrantState.Unknown => "Close unavailable until the original money grant has a terminal result",
 		_ => "Close Menu"
 	};
-
-	private static string WebsiteWriteResultClass()
-	{
-		if ( StaffMenuHost.WebsiteWriteIsPending )
-		{
-			return "settings-write-pending";
-		}
-
-		return StaffMenuHost.WebsiteWriteSucceeded ? "settings-write-success" : "settings-write-failed";
-	}
 
 	/// <summary>Copy the owner-configured website link to the clipboard, with a brief "copied" confirmation.</summary>
 	private void CopyWebsite()
@@ -4094,7 +4146,7 @@
 					HashCode.Combine( _auditScope, _auditWindowMinutes, _auditWindowOpen ),
 					HashCode.Combine(
 						HashCode.Combine( _websiteDraft, _websiteCopied, _copiedSteamId, _currentCopied,
-							StaffMenuHost.SettingsVersion, StaffMenuHost.WebsiteWriteVersion ),
+							StaffMenuHost.SettingsVersion, StaffMenuHost.WebsiteWriteVersion, _websiteSaveConfirmed ),
 						HashCode.Combine( _pocketModalOpen, _pocketModalSteamId, StaffMenuHost.GetPocketSlotCount(),
 							StaffMenuHost.PocketClientRevision,
 							StaffMenuHost.PocketAnsweredFor,

@@ -569,42 +569,32 @@ internal static class StaffMenuHost
 		_instance = Mount();
 		if ( _instance.IsValid() )
 		{
-			SetCursorMode( true );
 			return;
 		}
 
 		Log.Warning( "[lifepunchulx] Toggle failed — menu did not mount (see prior mount warnings)." );
 	}
 
-	/// <summary>Close and tear down the open menu, if any.</summary>
-	public static void RequestClose()
+	/// <summary>Close the calling menu, or the tracked menu when invoked by a command.</summary>
+	public static void RequestClose( StaffMenu? callingMenu = null )
 	{
 		if ( MoneyGrantBlocksMenuClose )
 		{
 			return;
 		}
 
-		if ( _instance.IsValid() )
+		var menu = callingMenu.IsValid() ? callingMenu : _instance;
+		if ( !menu.IsValid() )
 		{
-			Close( _instance );
+			return;
 		}
 
-		_instance = null;
-		SetCursorMode( false );
-	}
-
-	/// <summary>
-	/// Release look controls while the menu is open through <c>Player.LockCamera</c>,
-	/// which drives Controller.UseLookControls in Player.Camera.cs. No-op in the local fixture build.
-	/// </summary>
-	private static void SetCursorMode( bool menuOpen )
-	{
-#if !LIFEPUNCH_LOCAL
-		if ( Player.Local.IsValid() )
+		if ( menu == _instance )
 		{
-			Player.Local.LockCamera = menuOpen;
+			_instance = null;
 		}
-#endif
+
+		Close( menu );
 	}
 
 	public static bool IsGuardedStatusToggle( string actionKey ) =>
@@ -637,7 +627,7 @@ internal static class StaffMenuHost
 
 	/// <summary>
 	/// Observed state used to describe a toggle's next operation. Match the source the native
-	/// command tests; null means unavailable, not OFF. X-ray has no supported state reader yet.
+	/// command tests; null means unavailable, not OFF. X-ray is observable for the local player only.
 	/// </summary>
 	public static bool? GetCommandToggleState( string actionKey, long steamId )
 	{
@@ -650,6 +640,8 @@ internal static class StaffMenuHost
 
 		switch ( actionKey )
 		{
+			case "xray":
+				return player == Player.Local ? GetLocalXrayState() : null;
 			case "god":
 				return player.HasStatus( Constants.GodStatus );
 			case "cloak":
@@ -680,6 +672,11 @@ internal static class StaffMenuHost
 		if ( !Player.Local.IsValid() )
 		{
 			return false;
+		}
+
+		if ( actionKey == "xray" )
+		{
+			return GetLocalXrayState() == true;
 		}
 
 		if ( actionKey == "noclip" )
@@ -1099,6 +1096,7 @@ internal static class StaffMenuHost
 	/// that grants them, so an operator can tell a staff member's own toggle from a player running
 	/// a command they should not have. Conditions (frozen/jailed/gagged) are done TO a player
 	/// rather than wielded by one, so they are never flagged illegitimate.
+	/// X-ray is included only for the local player; remote X-ray state is unavailable.
 	/// </summary>
 	public static IReadOnlyList<StaffStateFlag> GetStateFlags( long steamId )
 	{
@@ -1132,6 +1130,9 @@ internal static class StaffMenuHost
 			var allowed = Config.Current.Game.NoClip || RankSystem.HasPermission( steamId, "ability.noclip" );
 			flags.Add( new StaffStateFlag( "Noclip", !allowed ) );
 		}
+
+		// Native X-ray belongs to this client; never attach its state to a remote player.
+		Power( player == Player.Local && GetLocalXrayState() == true, "X-ray", "command.xray" );
 
 		// Status ids are DXRP's own constants (Constants.FreezeStatus / PrisonerStatus / GaggedStatus).
 		if ( player.HasStatus( Constants.FreezeStatus ) )
@@ -1192,24 +1193,22 @@ internal static class StaffMenuHost
 
 	private static StaffMenu? Mount()
 	{
-		// Close any prior instance first (guards against a stale component surviving a hotload/reload).
+#if !LIFEPUNCH_LOCAL
+		if ( GameManager.IsHeadless )
+			return null;
+#endif
+
+		// Recover an untracked menu without discarding an in-flight money form.
 		var existing = Sandbox.Game.ActiveScene?.GetAllComponents<StaffMenu>().FirstOrDefault();
 		if ( existing.IsValid() )
 		{
+			if ( MoneyGrantBlocksMenuClose )
+				return existing;
+
 			Close( existing );
 		}
 
-#if LIFEPUNCH_LOCAL
 		return MountOnScreenPanel();
-#else
-		// Prefer DXRP HUD root (proven clickable path). Dedicated / early join sometimes has no HUD root yet.
-		var panel = GameManager.ShowUi<StaffMenu>();
-		if ( panel.IsValid() )
-			return panel;
-
-		Log.Warning( "[lifepunchulx] GameManager.ShowUi returned null — falling back to ScreenPanel." );
-		return MountOnScreenPanel();
-#endif
 	}
 
 	private static StaffMenu? MountOnScreenPanel()
@@ -1223,8 +1222,12 @@ internal static class StaffMenuHost
 
 		var go = scene.CreateObject();
 		go.Name = MenuObjectName;
+		go.NetworkMode = NetworkMode.Never;
+		go.Flags |= GameObjectFlags.NotNetworked | GameObjectFlags.NotSaved;
 		go.AddComponent<ScreenPanel>();
-		return go.AddComponent<StaffMenu>();
+		var menu = go.AddComponent<StaffMenu>();
+		menu.OwnedMenuRoot = go;
+		return menu;
 	}
 
 	private const string MenuObjectName = "LifePunchUlx";
@@ -1236,23 +1239,12 @@ internal static class StaffMenuHost
 			return;
 		}
 
-#if LIFEPUNCH_LOCAL
-		// Local build hosts the panel on its own object, so destroy the whole object.
-		if ( menu.GameObject.IsValid() )
-		{
-			menu.GameObject.Destroy();
-		}
-		else
-		{
-			menu.Destroy();
-		}
-#else
-		// ShowUi shares the HUD root; ScreenPanel fallback uses MenuObjectName — match LpHashdUiHost teardown.
-		if ( menu.GameObject.IsValid() && menu.GameObject.Name == MenuObjectName )
-			menu.GameObject.Destroy();
+		// Only a root explicitly owned by this component can be torn down wholesale.
+		// Older shared-HUD components have no owned root: remove just the component.
+		if ( menu.OwnedMenuRoot.IsValid() && menu.OwnedMenuRoot == menu.GameObject )
+			menu.OwnedMenuRoot.Destroy();
 		else
 			menu.Destroy();
-#endif
 	}
 
 	// --- Permission / roster reads (client-side, for UX gating only) -------
@@ -2138,6 +2130,19 @@ internal static class StaffMenuHost
 #endif
 	}
 
+	/// <summary>Distinguish local preview feedback from a confirmed server write.</summary>
+	public static string WebsiteSaveConfirmationLabel
+	{
+		get
+		{
+#if LIFEPUNCH_LOCAL
+			return "Previewed";
+#else
+			return "Saved";
+#endif
+		}
+	}
+
 	/// <summary>Save the network website URL (host re-checks the owner grant). An empty value clears it.</summary>
 	public static void SaveWebsite( string url )
 	{
@@ -2346,6 +2351,24 @@ internal static class StaffMenuHost
 				job.DisplayName(),
 				$"#{job.Color & 0xFFFFFFu:X6}" ) )
 			.ToList();
+#endif
+	}
+
+	/// <summary>Read the native local command instance; null means this session has no supported reader.</summary>
+	private static bool? GetLocalXrayState()
+	{
+#if LIFEPUNCH_LOCAL
+		return null;
+#else
+		var chat = Chat.Current;
+		if ( !Player.Local.IsValid() || chat is null
+			|| !chat.TryGetCommand( "xray", out var command )
+			|| command is not Dxura.RP.Game.Commands.XrayCommand xray )
+		{
+			return null;
+		}
+
+		return xray.IsActive;
 #endif
 	}
 

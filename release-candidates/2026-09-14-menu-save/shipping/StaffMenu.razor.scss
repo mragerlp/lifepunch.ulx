@@ -59,7 +59,7 @@ $tone-rust: #9a3412;
 $tone-slate: #334155;
 $tone-gold: #a16207;
 
-@import "../lifepunchcore/LifePunchUiFooter.razor.scss";
+@import "LifePunchUiFooter.razor.scss";
 
 .lifepunchulx {
 	position: absolute;
@@ -2932,14 +2932,6 @@ $tone-gold: #a16207;
 		font-size: 15px;
 	}
 
-	.settings-write-pending {
-		color: $amber;
-	}
-
-	.settings-write-success {
-		color: $success;
-	}
-
 	.settings-write-failed {
 		color: $danger;
 	}
@@ -3632,4 +3624,33 @@ $tone-gold: #a16207;
 		color: $muted;
 	}
 
+}
+
+// Standalone save states follow disabled rules so confirmation remains legible.
+.lifepunchulx {
+	.settings-save-pending,
+	.settings-save-pending .material-icons {
+		color: $amber;
+	}
+
+	.settings-save-confirmed,
+	.settings-save-confirmed:hover {
+		border-color: $success;
+		background-color: rgba($success, 0.10);
+		color: $success;
+	}
+
+	.settings-save-confirmed .material-icons {
+		color: $success;
+	}
+
+	.settings-save-spinner {
+		animation: ulx-website-save-spin 1s linear infinite;
+	}
+}
+
+// Same rotation pattern as the native UI styles.scss spin animation.
+@keyframes ulx-website-save-spin {
+	from { transform: rotate(0deg); }
+	to { transform: rotate(360deg); }
 }
