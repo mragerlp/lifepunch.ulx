@@ -951,7 +951,7 @@
 														<span class="flags-list">
 															@foreach ( var flag in stateFlags )
 															{
-																<span class="flag-chip @( flag.Illegitimate ? "flag-illegit" : "" )"
+																<span class="flag-chip @( ProfileFlagClass( flag ) )"
 																      tooltip="@( flag.Illegitimate ? "Active WITHOUT the permission that grants it" : "Permitted for this player" )">@flag.Label</span>
 															}
 														</span>
@@ -2225,6 +2225,45 @@
 		"player.sanctions.view.self",
 		"player.sanctions.view.other"
 	};
+
+	private static string ProfileFlagClass( StaffStateFlag flag )
+	{
+		if ( flag.Illegitimate )
+		{
+			return "flag-illegit";
+		}
+
+		var actionKey = flag.Label switch
+		{
+			"God mode" => "god",
+			"Cloaked" => "cloak",
+			"Incognito" => "incognito",
+			"Noclip" => "noclip",
+			"X-ray" => "xray",
+			"Frozen" => "freeze",
+			"Jailed" => "jail",
+			"Gagged" => "gag",
+			_ => ""
+		};
+		var action = StaffMenuActions.All.FirstOrDefault( candidate => candidate.Key == actionKey );
+		if ( action is null )
+		{
+			return "";
+		}
+
+		return action.DisplayTone switch
+		{
+			StaffActionDisplayTone.Cloak => "profile-flag-cloak",
+			StaffActionDisplayTone.Freeze => "profile-flag-freeze",
+			_ => action.Severity switch
+			{
+				StaffActionSeverity.Light => "profile-flag-light",
+				StaffActionSeverity.Medium => "profile-flag-medium",
+				StaffActionSeverity.Severe => "profile-flag-severe",
+				_ => ""
+			}
+		};
+	}
 
 	private static string SeverityClass( StaffActionSeverity severity ) => severity switch
 	{

@@ -1410,7 +1410,8 @@ $tone-gold: #a16207;
 	// hover look without changing severity data. The TOGGLE ON block below stays
 	// held-coloured at rest deliberately: that is live runtime state, not severity.
 
-	.action-severity-light:hover {
+	.action-severity-light:hover,
+	.profile-footer .profile-flag-light {
 		border-color: rgba($blue, 0.68);
 		background-color: rgba($blue, 0.16);
 	}
@@ -1424,7 +1425,8 @@ $tone-gold: #a16207;
 		background-color: rgba($blue, 0.24);
 	}
 
-	.action-severity-medium:hover {
+	.action-severity-medium:hover,
+	.profile-footer .profile-flag-medium {
 		border-color: rgba($amber, 0.65);
 		background-color: rgba($amber, 0.16);
 	}
@@ -1438,7 +1440,8 @@ $tone-gold: #a16207;
 		background-color: rgba($amber, 0.24);
 	}
 
-	.action-severity-severe:hover {
+	.action-severity-severe:hover,
+	.profile-footer .profile-flag-severe {
 		border-color: rgba($danger, 0.68);
 		background-color: rgba($danger, 0.18);
 	}
@@ -1482,7 +1485,8 @@ $tone-gold: #a16207;
 	}
 
 	// Freeze follows its native Frozen HUD cyan and white snowflake.
-	.action-tone-freeze:hover {
+	.action-tone-freeze:hover,
+	.profile-footer .profile-flag-freeze {
 		border-color: $freeze-hud;
 		background-color: rgba($freeze-hud, 0.20);
 	}
@@ -1528,7 +1532,8 @@ $tone-gold: #a16207;
 	}
 
 	// Cloak keeps its native HUD gray border, translucent fill and white icon.
-	.action-tone-cloak:hover {
+	.action-tone-cloak:hover,
+	.profile-footer .profile-flag-cloak {
 		border-color: $cloak-hud;
 		background-color: rgba($cloak-hud, 0.20);
 	}
@@ -2148,6 +2153,15 @@ $tone-gold: #a16207;
 		border-color: $danger;
 		background-color: rgba($danger, 0.20);
 		color: $danger;
+	}
+
+	// Permitted profile chips share the catalog hover palette; unauthorized chips keep the warning.
+	.profile-footer .profile-flag-light,
+	.profile-footer .profile-flag-medium,
+	.profile-footer .profile-flag-severe,
+	.profile-footer .profile-flag-cloak,
+	.profile-footer .profile-flag-freeze {
+		color: $text;
 	}
 
 	// 16f -- EQUAL HEIGHTS. flex-start sized every column to its own content, so
@@ -3518,8 +3532,8 @@ $tone-gold: #a16207;
 		align-items: stretch;
 		flex: 1 1 0;
 		min-height: 0;
-		width: 90%;
-		align-self: center;
+		width: 100%;
+		justify-content: space-between;
 		padding: 12px 0 14px;
 		gap: 14px;
 	}
@@ -3642,7 +3656,7 @@ $tone-gold: #a16207;
 
 	.accent-palette-summary {
 		flex-direction: column;
-		flex: 1 1 0;
+		flex: 0 0 200px;
 		min-width: 0;
 		gap: 8px;
 	}
