@@ -34,14 +34,16 @@ internal static class LpParityHost
 	public const string RankViewPermissionId = "portal.rank.view";
 
 	/// <summary>
-	/// The current published parent predates the synced rank DTO surface used by the workbench.
+	/// The current published parent has rank DTOs but no public rank-definition snapshot accessor.
 	/// Fail closed instead of substituting fixtures or claiming that an empty list is a tenant roster.
 	/// </summary>
 	public static bool RanksAreAvailable => false;
 	public static bool CanViewRanks() => StaffMenuHost.CanView( RankViewPermissionId );
 	public static bool RanksAreComplete => false;
 	public const string RanksScopeNote =
-		"Rank observation is unavailable from the currently published parent package. No tenant-rank claim is made.";
+		"Ranks supplied by this server's Portal connection, including ranks with nobody assigned online.";
+	public const string RanksUnavailableReason =
+		"The current parent package does not expose the rank directory. Use the Portal until the parent is updated.";
 	public static IReadOnlyList<LpParityRank> ObservedRanks() => System.Array.Empty<LpParityRank>();
 }
 #else
@@ -57,16 +59,31 @@ internal static class LpParityHost
 	public const string RankViewPermissionId = "portal.rank.view";
 	public const string AddonViewPermissionId = "portal.addon.view";
 
-	/// <summary>UX gating only — mirrors <c>portal.server.view</c>.</summary>
+	// REACHABILITY, sensed 2026-09-18 (R9) and recorded so the next reader is not misled: of the four
+	// gates below, only CanViewRanks() is reachable. CanViewServer() and CanViewGameMode() have NO callers
+	// anywhere in game/. CanViewAddons() has exactly one caller -- GameModeOverview() -- and that method
+	// itself has no callers, so the gate is transitively dead. ServerStatus() and GameModeOverview() are
+	// likewise never invoked. They are LEFT AS THEY ARE on purpose: under R-2639-A the fix for a gate that
+	// hides a section is to stop it hiding, and a gate that gates nothing hides nothing. Wiring these up so
+	// they could then be inverted would ADD gating that does not exist today, which is the opposite of the
+	// ruling. If these projections are ever mounted, they must render for every rank from the start.
+
+	/// <summary>UX gating only — mirrors <c>portal.server.view</c>. Currently has no callers.</summary>
 	public static bool CanViewServer() => StaffMenuHost.CanView( ServerViewPermissionId );
 
-	/// <summary>UX gating only — mirrors <c>portal.gamemode.view</c>.</summary>
+	/// <summary>UX gating only — mirrors <c>portal.gamemode.view</c>. Currently has no callers.</summary>
 	public static bool CanViewGameMode() => StaffMenuHost.CanView( GameModeViewPermissionId );
 
-	/// <summary>UX gating only — mirrors <c>portal.rank.view</c>.</summary>
+	/// <summary>
+	/// UX gating only — mirrors <c>portal.rank.view</c>. The one reachable gate of the four: read by
+	/// StaffObserve.razor, where it decides whether rank ROWS are supplied, never whether the view renders.
+	/// </summary>
 	public static bool CanViewRanks() => StaffMenuHost.CanView( RankViewPermissionId );
 
-	/// <summary>UX gating only — mirrors <c>portal.addon.view</c>.</summary>
+	/// <summary>
+	/// UX gating only — mirrors <c>portal.addon.view</c>. Reached only from <c>GameModeOverview()</c>,
+	/// which has no callers, so this gate is transitively dead. See the reachability note above.
+	/// </summary>
 	public static bool CanViewAddons() => StaffMenuHost.CanView( AddonViewPermissionId );
 
 	private const string HostOnlyText = "host only";
@@ -391,80 +408,83 @@ internal static class LpParityHost
 	}
 #endif
 
-	// --- Ranks view (portal "Ranks" page, observed subset) -----------------
+	// --- Ranks view (all definitions in this server's synchronized snapshot) ---
 
 	/// <summary>
-	/// Distinct display ranks returned by <c>GetPlayerRank(steamId)</c> for online players,
-	/// including each rank's grants. This projection does not enumerate the full tenant roster;
-	/// see <see cref="RanksAreComplete"/>.
+	/// Every definition received by this server, including zero-holder ranks. Rank IDs, never
+	/// display names or ordinal values, identify rows. Counts include secondary assignments
+	/// on distinct online players; default-rank fallback is not an explicit assignment.
 	/// </summary>
 	public static IReadOnlyList<LpParityRank> ObservedRanks()
 	{
+		if ( !CanViewRanks() || !RanksAreAvailable )
+			return System.Array.Empty<LpParityRank>();
+
 #if LIFEPUNCH_LOCAL
 		return new List<LpParityRank>
 		{
-			new( "Owner", 69, "#E74C3C", false, 1, 1, true ),
-			new( "Super Admin", 10, "#3498DB", false, 74, 1, false ),
-			new( "Admin", 5, "#2ECC71", false, 41, 1, false ),
-			new( "Mod", 4, "#9B59B6", false, 18, 1, false ),
-			new( "Member", 0, "#FFFFFF", true, 6, 2, false )
+			new( "Owner", 69, "#E74C3C", false, 1, 1, true, new System.Guid( "00000000-0000-0000-0000-000000000001" ) ),
+			new( "Super Admin", 10, "#3498DB", false, 74, 1, false, new System.Guid( "00000000-0000-0000-0000-000000000002" ) ),
+			new( "Admin", 5, "#2ECC71", false, 41, 1, false, new System.Guid( "00000000-0000-0000-0000-000000000003" ) ),
+			new( "Mod", 4, "#9B59B6", false, 18, 1, false, new System.Guid( "00000000-0000-0000-0000-000000000004" ) ),
+			new( "Member", 0, "#FFFFFF", true, 6, 0, false, new System.Guid( "00000000-0000-0000-0000-000000000005" ) )
 		};
 #else
 		var system = RankSystem.Instance;
-		if ( !system.IsValid() )
+		var onlineAssignments = new Dictionary<System.Guid, int>();
+		foreach ( var steamId in GameUtils.Players.Where( p => p.IsValid() ).Select( p => p.SteamId ).Distinct() )
 		{
-			return System.Array.Empty<LpParityRank>();
+			foreach ( var rankId in system.GetPlayerRankIds( steamId ).Distinct() )
+			{
+				onlineAssignments.TryGetValue( rankId, out var count );
+				onlineAssignments[rankId] = count + 1;
+			}
 		}
 
-		var byName = new Dictionary<string, LpParityRank>( System.StringComparer.OrdinalIgnoreCase );
-
-		foreach ( var player in GameUtils.Players.Where( p => p.IsValid() ) )
+		var byId = new Dictionary<System.Guid, LpParityRank>();
+		foreach ( var rank in system.GetRanksSnapshot() )
 		{
-			var rank = system.GetPlayerRank( player.SteamId );
-			if ( rank is null )
-			{
-				continue;
-			}
-
 			var name = SanitizeRankName( rank.Name );
-			if ( string.IsNullOrWhiteSpace( name ) )
-			{
-				continue;
-			}
-
-			if ( byName.TryGetValue( name, out var existing ) )
-			{
-				byName[name] = existing with { HoldersOnline = existing.HoldersOnline + 1 };
-				continue;
-			}
-
 			var permissions = rank.Permissions ?? new List<string>();
-			byName[name] = new LpParityRank(
-				name,
+			onlineAssignments.TryGetValue( rank.Id, out var count );
+			byId[rank.Id] = new LpParityRank(
+				string.IsNullOrWhiteSpace( name ) ? "Unnamed rank" : name,
 				rank.Order,
 				$"#{rank.Color & 0xFFFFFFu:X6}",
 				rank.IsDefault,
 				permissions.Count,
-				1,
-				permissions.Contains( "*" ) );
+				count,
+				permissions.Contains( "*" ),
+				rank.Id );
 		}
 
-		return byName.Values
+		return byId.Values
 			.OrderByDescending( r => r.Order )
 			.ThenBy( r => r.Name, System.StringComparer.OrdinalIgnoreCase )
+			.ThenBy( r => r.Id )
 			.ToList();
 #endif
 	}
 
 	/// <summary>
-	/// False because this projection includes only display ranks observed on online players.
+	/// Complete within the server's received snapshot; this is not a claim that the Portal
+	/// sent ranks belonging only to other servers or every rank in the tenant.
 	/// </summary>
-	public static bool RanksAreComplete => false;
+	public static bool RanksAreComplete => RanksAreAvailable;
+#if LIFEPUNCH_LOCAL
 	public static bool RanksAreAvailable => true;
-
-	/// <summary>The sentence a parity Ranks panel should show under its heading.</summary>
+	public const string RanksScopeNote = "Editor fixtures only. These example ranks are not Portal data.";
+	public const string RanksUnavailableReason = "";
+#else
+	public static bool RanksAreAvailable => IsLinked && IsReady && RankSystem.Instance.IsValid();
 	public const string RanksScopeNote =
-		"Display ranks observed for players currently online. Secondary assignments and the full tenant roster are not included in this view.";
+		"Ranks supplied by this server's Portal connection, including ranks with nobody assigned online. Counts include secondary assignments.";
+	public static string RanksUnavailableReason => !IsLinked
+		? "This server is not linked to a Portal network."
+		: !IsReady || !RankSystem.Instance.IsValid()
+			? "Waiting for the server's rank directory."
+			: "";
+#endif
 
 #if !LIFEPUNCH_LOCAL
 	/// <summary>
