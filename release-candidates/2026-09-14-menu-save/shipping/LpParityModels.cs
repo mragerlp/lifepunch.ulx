@@ -79,8 +79,8 @@ public readonly record struct LpParityCatalogRow(
 	string Sensor );
 
 /// <summary>
-/// A server-synchronized rank definition, projected without Dxura types.
-/// PermissionCount counts entries, including denies; it is not a count of effective grants.
+/// A display rank observed on an online player, projected without Dxura types.
+/// This represents the highest/display rank returned by GetPlayerRank, not the full tenant roster.
 /// </summary>
 public readonly record struct LpParityRank(
 	string Name,
@@ -89,5 +89,4 @@ public readonly record struct LpParityRank(
 	bool IsDefault,
 	int PermissionCount,
 	int HoldersOnline,
-	bool HasWildcard,
-	System.Guid Id = default );
+	bool HasWildcard );

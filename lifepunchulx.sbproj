@@ -14,7 +14,7 @@
     "ParentPackage": "dxura.rp",
     "Compiler": {
       "RootNamespace": "LifePunch.DXRP.Addons.StaffMenu",
-      "DefineConstants": "SANDBOX;ADDON;DEBUG;LIFEPUNCH_PACKAGE",
+      "DefineConstants": "SANDBOX;ADDON;LIFEPUNCH_PACKAGE",
       "Nullables": true
     }
   }
