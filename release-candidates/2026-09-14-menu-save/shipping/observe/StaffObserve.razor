@@ -18,13 +18,13 @@
 @using Sandbox
 @using Sandbox.UI
 
-@* Observe records use scoped host projections; Staff chat uses the native channel. Views without a connected provider
+@* Read-only Observe views use StaffObserveHost. Views without a connected provider
    show the availability state from StaffObserveSockets. *@
 <root class="observe">
 	@if ( SanctionsOnly )
 	{
-		@* The profile route uses per-subject sanctions permissions. Audit permission is
-		   required only for Sentinel, Economy and Staff records. All hub tabs stay visible. *@
+		@* The profile route mounts this renderer in SanctionsOnly mode with per-subject
+		   CanViewSanctions access. The full Observe hub retains the stricter CanViewObserve gate. *@
 		<div class="observe-head observe-head-sanctions">
 			<i class="material-icons">gavel</i>
 			<span class="observe-title">Sanctions</span>
@@ -56,33 +56,11 @@
 		<button class="@ViewClass( ObserveView.Ranks )" onclick="@(() => SetView( ObserveView.Ranks ))">
 			<i class="material-icons">admin_panel_settings</i><span>Ranks</span>
 		</button>
-		<div class="observe-chat-actions">
-			@if ( ActiveView == ObserveView.StaffChat )
-			{
-				<button class="observe-tab observe-back-button" onclick="@CloseStaffChat" tooltip="Back to Observe">
-					<i class="material-icons">arrow_back</i><span>Back to Observe</span>
-				</button>
-			}
-			<button class="@ViewClass( ObserveView.StaffChat )" onclick="@OpenStaffChat">
-				<i class="material-icons">chat</i><span>Chat</span>
-			</button>
-		</div>
 	</div>
 	}
 
 	<div class="observe-body">
-	@* Tabs remain visible. Only audit-backed views share the audit read gate; Sanctions and
-	   Ranks enforce their own scopes below. Denied records stay separate from unavailable data. *@
-	@if ( IsAuditView && !StaffObserveHost.CanViewObserve() )
-	{
-		<div class="observe-caveat">@ObserveDeniedReason</div>
-		<div class="observe-empty">@ObserveDeniedDetail</div>
-	}
-	else if ( ActiveView == ObserveView.StaffChat )
-	{
-		<StaffChatPanel />
-	}
-	else if ( ActiveView == ObserveView.Sentinel )
+	@if ( ActiveView == ObserveView.Sentinel )
 	{
 		<div class="observe-view">
 			<div class="observe-block">
@@ -162,7 +140,7 @@
 				}
 				else if ( moderation.Count == 0 )
 				{
-					<div class="observe-empty">No enforcement events in the available audit snapshot.</div>
+					<div class="observe-empty">No enforcement events in this boot's ring.</div>
 				}
 				else
 				{
@@ -179,7 +157,7 @@
 					</div>
 					@if ( moderation.Count > DisplayCap )
 					{
-						<div class="observe-overflow">@( $"Showing the newest {DisplayCap} of {moderation.Count} snapshot events -- view the rest in Audit." )</div>
+						<div class="observe-overflow">@( $"Showing the newest {DisplayCap} of {moderation.Count} ring events -- the Audit tab reaches the rest." )</div>
 					}
 				}
 			</div>
@@ -268,7 +246,7 @@
 				}
 				else if ( economy.Count == 0 )
 				{
-					<div class="observe-empty">No money events in the available audit snapshot.</div>
+					<div class="observe-empty">No money events recorded in this boot's available audit feed.</div>
 				}
 				else
 				{
@@ -285,7 +263,7 @@
 					</div>
 					@if ( economy.Count > DisplayCap )
 					{
-						<div class="observe-overflow">@( $"Showing the newest {DisplayCap} of {economy.Count} snapshot events -- view the rest in Audit." )</div>
+						<div class="observe-overflow">@( $"Showing the newest {DisplayCap} of {economy.Count} ring events -- the Audit tab reaches the rest." )</div>
 					}
 				}
 			</div>
@@ -296,7 +274,7 @@
 		<div class="observe-view">
 			<div class="observe-block">
 				<div class="observe-section-head">Online staff</div>
-				<div class="observe-hint">Online staff, ordered by rank. Counts cover the available audit snapshot; zero does not mean inactive.</div>
+				<div class="observe-hint">Rank-ordered staff on the server right now, with live playtime and this boot's recorded actions.</div>
 				@{
 					var staff = StaffObserveHost.StaffActivity();
 				}
@@ -306,17 +284,17 @@
 				}
 				else
 				{
-					@* An unavailable audit snapshot does not establish zero activity. *@
+					@* Remote clients cannot read the host ring; an unavailable action count is not zero activity. *@
 					@if ( !StaffObserveHost.RingLivesHere )
 					{
 						<div class="observe-caveat">@StaffObserveHost.RingUnavailableText</div>
 					}
-					<div class="lp-ui-scroll-region observe-list observe-staff-list lp-ui-measured-scroll">
+					<div class="lp-ui-scroll-region observe-list lp-ui-measured-scroll">
 					@foreach ( var row in staff )
 					{
 						<div class="observe-row">
 							<span class="o-name">@row.Player.Name</span>
-							<span class="o-role" style="@( $"color: {row.Player.RankColorHex};" )">@row.Player.Role</span>
+							<span class="o-role">@row.Player.Role</span>
 							<span class="o-meta">@( $"{row.Player.PlayTimeMinutes / 60}h {row.Player.PlayTimeMinutes % 60}m played" )</span>
 							<span class="o-meta">@RecordedActionsText( row.RingEventCount )</span>
 							<span class="o-flags">
@@ -330,30 +308,61 @@
 							        tooltip="@StaffFilterTooltip( row.Player.SteamId )">
 								<i class="material-icons">filter_alt</i>
 							</button>
-							@* R-2639-A / R-2640-A per-control parity: this control RENDERS for every rank. Ungranted it
-							   takes the existing control-disabled state and its tooltip names the scope -- the same idiom
-							   the Moderation tiles use. It used to vanish, which is what the ruling forbids. *@
-							@{
-								var rowSanctionsOk = StaffMenuHost.CanViewSanctions( row.Player.SteamId );
+							@if ( StaffMenuHost.CanViewSanctions( row.Player.SteamId ) )
+							{
+								<button class="o-sanctions-btn"
+								        onclick="@(() => OpenSanctions( row.Player.SteamId, row.Player.Name ))"
+								        tooltip="Read this member's sanctions">
+									<i class="material-icons">gavel</i>
+								</button>
 							}
-							<button class="o-sanctions-btn @( rowSanctionsOk ? "" : "control-disabled" )"
-							        onclick="@(() => OpenSanctionsGuarded( row.Player.SteamId, row.Player.Name ))"
-							        tooltip="@( rowSanctionsOk ? "Read this member's sanctions" : SanctionsLockedHint( row.Player.SteamId ) )">
-								<i class="material-icons">gavel</i>
-							</button>
 						</div>
 					}
 					</div>
+					@if ( StaffObserveHost.RingLivesHere )
+					{
+						<div class="observe-caveat">Recorded actions count this boot's host-side event ring (newest 500) -- not lifetime history.</div>
+					}
+				}
+			</div>
+
+			<div class="observe-block">
+				<div class="observe-section-head">Offline staff</div>
+				@if ( StaffObserveSockets.OfflineStaff is null )
+				{
+					<div class="observe-reserved">
+						<i class="material-icons">plumbing</i>
+						<span class="observe-reserved-title">No data source is wired yet</span>
+						<span class="observe-reserved-hint">Rank assignments are synced but carry no roster enumerator, and no last-seen or offline-playtime source exists in game code. This panel is a reserved socket for that roster; nothing here is simulated.</span>
+					</div>
+				}
+				else if ( StaffObserveSockets.OfflineStaff.Count == 0 )
+				{
+					<div class="observe-empty">The offline-staff feed is available, with no offline staff records to show.</div>
+				}
+				else
+				{
+					<div class="lp-ui-scroll-region observe-list lp-ui-measured-scroll">
+					@foreach ( var member in StaffObserveSockets.OfflineStaff.Take( DisplayCap ) )
+					{
+						<div class="observe-row">
+							<span class="o-name">@member.Name</span>
+							<span class="o-role">@member.Role</span>
+							<span class="o-meta">@( $"Last seen {member.LastSeen}" )</span>
+							<span class="o-meta">@member.TotalPlaytime</span>
+						</div>
+					}
+					</div>
+					@if ( StaffObserveSockets.OfflineStaff.Count > DisplayCap )
+					{
+						<div class="observe-overflow">@( $"Showing the newest {DisplayCap} of {StaffObserveSockets.OfflineStaff.Count} offline staff records." )</div>
+					}
 				}
 			</div>
 
 			<div class="observe-block">
 				<div class="observe-section-head">Staff action log</div>
-				<div class="observe-hint">Recorded acts gated behind a staff power, newest first -- the same available audit snapshot the Audit tab reads, filtered to staff actions. The name is the acting staff member; the target of an act lives in the description text.</div>
-				@if ( StaffObserveHost.RingLivesHere )
-				{
-					<div class="observe-caveat">Recent recorded staff actions only; older events may be unavailable.</div>
-				}
+				<div class="observe-hint">Recorded acts gated behind a staff power, newest first -- the same host event ring the Audit tab reads, filtered to staff actions. The name is the acting staff member; the target of an act lives in the description text.</div>
 				@{
 					var staffLog = StaffObserveHost.StaffActionLog( _staffActorFilter );
 				}
@@ -404,47 +413,50 @@
 			<div class="observe-block observe-block-sanctions">
 				@{
 					// Share one read state between the action controls and body copy during this render.
-					var subjectState = CurrentSanctionsState;
+					var subjectState = _sanctionsSubjectId == 0
+						? SanctionsReadState.Unanswered
+						: StaffMenuHost.GetSanctionsState( _sanctionsSubjectId );
 				}
 				<div class="observe-sanctions-overview">
 					<div class="observe-sanctions-intro">
-						<div class="observe-sanctions-badges">
-							<div class="observe-section-head">Sanction history</div>
-							<span class="observe-history-badge">History only</span>
-						</div>
+						<div class="observe-section-head">Sanction history</div>
 						<div class="observe-hint">Issue sanctions in Moderation. The Portal is authoritative for issuer details, appeals and pardons.</div>
 					</div>
-					@if ( _sanctionsSubjectId != 0 || OnReturnToProfile is not null )
-					{
-						<div class="observe-sanctions-actions">
-							@if ( _sanctionsSubjectId != 0 )
-							{
-								@if ( SanctionsSubjectIsOnline() )
-								{
-									<button class="observe-route-button observe-route-primary" onclick="@OpenSelectedPlayerModeration" tooltip="Open this player's Moderation profile and sanction actions">
-										<i class="material-icons">gavel</i><span>Open Moderation</span>
-									</button>
-								}
-								@if ( subjectState is SanctionsReadState.Failed or SanctionsReadState.Unanswered )
-								{
-									<button class="observe-route-button" onclick="@RetrySanctionsRead" tooltip="Ask the host for this record again (never changes it)">
-										<i class="material-icons">refresh</i><span>Retry read</span>
-									</button>
-								}
-								<button class="observe-route-button" onclick="@ClearSanctionsSubject">
-									<i class="material-icons">person_search</i><span>Change player</span>
-								</button>
-							}
-							@if ( OnReturnToProfile is not null )
-							{
-								<button class="observe-route-button" onclick="@ReturnToProfile" tooltip="Back to the player profile this view was opened from">
-									<i class="material-icons">arrow_back</i><span>Return to profile</span>
-								</button>
-							}
-
-						</div>
-					}
+					<div class="observe-sanctions-badges">
+						<span class="observe-history-badge">History only</span>
+						@* The record badge and body copy share SanctionsReadState. *@
+					</div>
 				</div>
+				@if ( _sanctionsSubjectId != 0 || OnReturnToProfile is not null )
+				{
+					<div class="observe-sanctions-actions">
+						@if ( _sanctionsSubjectId != 0 )
+						{
+							@if ( SanctionsSubjectIsOnline() )
+							{
+								<button class="observe-route-button observe-route-primary" onclick="@OpenSelectedPlayerModeration" tooltip="Open this player's Moderation profile and sanction actions">
+									<i class="material-icons">gavel</i><span>Open Moderation</span>
+								</button>
+							}
+							@if ( subjectState is SanctionsReadState.Failed or SanctionsReadState.Unanswered )
+							{
+								<button class="observe-route-button" onclick="@RetrySanctionsRead" tooltip="Ask the host for this record again (never changes it)">
+									<i class="material-icons">refresh</i><span>Retry read</span>
+								</button>
+							}
+							<button class="observe-route-button" onclick="@ClearSanctionsSubject">
+								<i class="material-icons">person_search</i><span>Change player</span>
+							</button>
+						}
+						@if ( OnReturnToProfile is not null )
+						{
+							<button class="observe-route-button" onclick="@ReturnToProfile" tooltip="Back to the player profile this view was opened from">
+								<i class="material-icons">arrow_back</i><span>Return to profile</span>
+							</button>
+						}
+
+					</div>
+				}
 
 				@if ( _sanctionsSubjectId == 0 )
 				{
@@ -463,17 +475,14 @@
 						</div>
 						@if ( subjectMatches.Count == 0 )
 						{
-							<div class="observe-empty">No online player matches this search. Enter an exact SteamID64 to request an offline player's record.</div>
+							<div class="observe-empty">No viewable online player matches this search. Enter an exact SteamID64 to request an offline player's record.</div>
 						}
 						else
 						{
 							<div class="lp-ui-scroll-region observe-subject-list lp-ui-measured-scroll">
 							@foreach ( var player in subjectMatches.Take( DisplayCap ) )
 							{
-								var pickSanctionsOk = StaffMenuHost.CanViewSanctions( player.SteamId );
-								<button class="observe-subject-option @( pickSanctionsOk ? "" : "control-disabled" )"
-								        onclick="@(() => OpenSanctionsGuarded( player.SteamId, player.Name ))"
-								        tooltip="@( pickSanctionsOk ? "" : SanctionsLockedHint( player.SteamId ) )">
+								<button class="observe-subject-option" onclick="@(() => OpenSanctions( player.SteamId, player.Name ))">
 									<i class="material-icons">person</i>
 									<span class="observe-subject-identity">
 										<span class="o-name">@player.Name</span>
@@ -602,7 +611,7 @@
 				}
 			</div>
 			<div class="observe-sanctions-footer">
-				<button class="observe-route-button observe-route-portal" onclick="@CopyPortalSanctionsLink" tooltip="@( $"Copy {PortalSanctionsUrl}" )">
+				<button class="observe-route-button observe-route-portal" onclick="@CopyPortalSanctionsLink" tooltip="Copy https://dxrp.net/portal/sanctions">
 					<i class="material-icons">@( _portalLinkCopied ? "check" : "content_copy" )</i>
 					<span>@( _portalLinkCopied ? "Portal link copied" : "Copy Portal link" )</span>
 				</button>
@@ -613,14 +622,14 @@
 	{
 		<div class="observe-view">
 			<div class="observe-block">
-				<div class="observe-section-head">Server ranks</div>
+				<div class="observe-section-head">Observed online display ranks</div>
 				<div class="observe-hint">@LpParityHost.RanksScopeNote</div>
 				@if ( !LpParityHost.RanksAreAvailable )
 				{
 					<div class="observe-reserved">
 						<i class="material-icons">plumbing</i>
-						<span class="observe-reserved-title">Rank directory unavailable</span>
-						<span class="observe-reserved-hint">@LpParityHost.RanksUnavailableReason</span>
+						<span class="observe-reserved-title">Rank observation is unavailable in this package revision</span>
+						<span class="observe-reserved-hint">The published parent does not expose the required synced rank surface. Use the Portal until the parent package is updated; no rank data is simulated here.</span>
 					</div>
 				}
 				else if ( !LpParityHost.RanksAreComplete )
@@ -629,19 +638,14 @@
 				}
 				@if ( LpParityHost.RanksAreAvailable && !LpParityHost.CanViewRanks() )
 				{
-					@* PERMISSION-driven, and worded so it cannot be mistaken for the BUILD-driven block above.
-					   That one says this package cannot supply ranks AT ALL; this one names the scope to request.
-					   The two are reached by different conditions (RanksAreAvailable vs CanViewRanks) and must
-					   stay worded apart, so "your rank cannot action this" never reads as "this build cannot
-					   supply this". *@
-					<div class="observe-empty">Requires permission: @LpParityHost.RankViewPermissionId</div>
+					<div class="observe-empty">You do not have permission to view ranks.</div>
 				}
 				else if ( LpParityHost.RanksAreAvailable )
 				{
 					var ranks = LpParityHost.ObservedRanks();
 					@if ( ranks.Count == 0 )
 					{
-						<div class="observe-empty">No rank definitions are available in the received server snapshot.</div>
+						<div class="observe-empty">No ranks are observable from players currently online. This is not a claim that the tenant has no ranks.</div>
 					}
 					else
 					{
@@ -649,13 +653,13 @@
 						@foreach ( var rank in ranks )
 						{
 							<div class="observe-row">
-								<span class="o-name" style="@( $"color: {rank.ColorHex};" )" tooltip="@( $"Rank ID: {rank.Id}" )">@rank.Name</span>
+								<span class="o-name">@rank.Name</span>
 								<span class="o-role">@( $"Order {rank.Order}" )</span>
 								<span class="o-meta">@( $"Color {rank.ColorHex}" )</span>
 								<span class="o-meta">@( rank.IsDefault ? "Default rank" : "Not default" )</span>
-								<span class="o-meta">@( rank.PermissionCount == 1 ? "1 permission entry" : $"{rank.PermissionCount} permission entries" )</span>
-								<span class="o-meta">@( rank.HasWildcard ? "Wildcard entry (*)" : "No wildcard entry" )</span>
-								<span class="o-id">@( rank.HoldersOnline == 1 ? "1 assigned online" : $"{rank.HoldersOnline} assigned online" )</span>
+								<span class="o-meta">@( rank.PermissionCount == 1 ? "1 permission" : $"{rank.PermissionCount} permissions" )</span>
+								<span class="o-meta">@( rank.HasWildcard ? "Wildcard (*)" : "No wildcard" )</span>
+								<span class="o-id">@( rank.HoldersOnline == 1 ? "1 holder online" : $"{rank.HoldersOnline} holders online" )</span>
 							</div>
 						}
 						</div>
@@ -677,70 +681,16 @@
 		Economy,
 		Staff,
 		Sanctions,
-		Ranks,
-		StaffChat
+		Ranks
 	}
 
 	private ObserveView _view = ObserveView.Sentinel;
-	private ObserveView _chatReturnView = ObserveView.Sentinel;
 
 	// Newest-first render caps, same rationale as the Audit tab's display cap: the ring
 	// holds up to 500 rows and rendering them all drags the whole menu.
 	private const int DisplayCap = 40;
 	private const int HoldingsCap = 15;
-	/// <summary>
-	/// B3 fix. The copied link now derives from the SAME source of truth the API calls use
-	/// (<c>Constants.BaseWebsiteUrl</c>, which switches on <c>ServerApiLink.Endpoint</c>), instead of a
-	/// hardcoded production host. A Local or Staging server previously handed the operator a PRODUCTION
-	/// link. No mapping is invented here: BaseWebsiteUrl is the project's own website-host switch and is
-	/// already used this way by ChangelogPopup, Rules, Motd and LpParityHost ("Portal address").
-	/// Note its shape is deliberately the project's, not ours: only Production maps to dxrp.net and every
-	/// other endpoint (Local included) maps to staging.dxrp.net.
-	/// </summary>
-	private static string PortalSanctionsUrl =>
-#if LIFEPUNCH_LOCAL
-		"https://staging.dxrp.net/portal/sanctions";
-#else
-		$"{Dxura.RP.Game.Constants.BaseWebsiteUrl}/portal/sanctions";
-#endif
-
-	/// <summary>
-	/// Reason shown on a sanctions control greyed by a missing grant. Names the EXISTING scope that
-	/// <see cref="StaffMenuHost.CanViewSanctions"/> already checks -- no new permission id is minted.
-	/// </summary>
-	private static string SanctionsLockedHint( long steamId ) => steamId == StaffMenuHost.LocalSteamId
-		? "Requires permission: player.sanctions.view.self or player.sanctions.view.other"
-		: "Requires permission: player.sanctions.view.other";
-
-	/// <summary>
-	/// Click guard for the sanctions controls, which now render even when ungranted. UX gating only --
-	/// StaffMenuHost.RequestSanctions re-checks CanViewSanctions host-side regardless.
-	/// </summary>
-	private void OpenSanctionsGuarded( long steamId, string name )
-	{
-		if ( !StaffMenuHost.CanViewSanctions( steamId ) )
-		{
-			return;
-		}
-
-		OpenSanctions( steamId, name );
-	}
-
-	/// <summary>
-	/// Reason shown when the viewer lacks the audit-backed view's configured permission.
-	/// PERMISSION-driven. Distinct by construction from <see cref="LpParityHost.RanksScopeNote"/>, which is
-	/// BUILD-driven and reports what the published parent package cannot supply at all.
-	/// </summary>
-	private static string ObserveDeniedReason =>
-		$"Requires permission: {StaffMenuHost.AuditPermissionId}";
-
-	/// <summary>
-	/// Says plainly that the pages are listed but the records are withheld, so an empty Observe hub is never
-	/// misread as "the server has no records".
-	/// </summary>
-	private const string ObserveDeniedDetail =
-		"Every Observe page is listed above so you can see what exists. The records themselves stay withheld "
-		+ "until your rank is granted this scope. This is a permission state, not a claim that the data is empty.";
+	private const string PortalSanctionsUrl = "https://dxrp.net/portal/sanctions";
 	private static readonly string[] SanctionTypeFilters =
 	{
 		"All", "Automatic", "Warning", "Jail", "Ban", "Kick", "Note", "Gag"
@@ -749,7 +699,7 @@
 	public Action<long>? OnManagePlayer { get; set; }
 
 	// SanctionsOnly is the profile mount: no Observe header or tabs, and only per-subject
-	// CanViewSanctions access. Audit-backed hub views use CanViewObserve for records only.
+	// CanViewSanctions access. StaffMenu applies the stricter CanViewObserve gate to the full hub.
 	public bool SanctionsOnly { get; set; }
 
 	// Return path offered only when the parent seeded this view from a profile.
@@ -783,18 +733,6 @@
 		}
 
 		_subjectSeedAdopted = _subjectSeedVersion;
-		if ( !StaffMenuHost.CanViewSanctions( SubjectSeedSteamId ) )
-		{
-			// Remember the denied subject without sending a read; a later grant can fetch it.
-			StaffMenuHost.RequestSanctions( SubjectSeedSteamId );
-			// Keep the seeded route and return control without requesting a protected record.
-			_sanctionsSubjectId = SubjectSeedSteamId;
-			_sanctionsSubjectName = "";
-			_sanctionsSearchText = "";
-			_sanctionsTypeFilter = "All";
-			return;
-		}
-
 		var online = StaffMenuHost.OnlinePlayers().FirstOrDefault( player => player.SteamId == SubjectSeedSteamId );
 		OpenSanctions( SubjectSeedSteamId,
 			online.SteamId == SubjectSeedSteamId ? online.Name : $"SteamID {SubjectSeedSteamId}" );
@@ -802,12 +740,6 @@
 
 	/// <summary>The view actually rendered: the seed mount is pinned to Sanctions whatever _view says.</summary>
 	private ObserveView ActiveView => SanctionsOnly ? ObserveView.Sanctions : _view;
-
-	private bool IsAuditView => ActiveView is ObserveView.Sentinel or ObserveView.Economy or ObserveView.Staff;
-
-	private SanctionsReadState CurrentSanctionsState => _sanctionsSubjectId == 0
-		? SanctionsReadState.Unanswered
-		: StaffMenuHost.GetSanctionsState( _sanctionsSubjectId );
 
 	private void ReturnToProfile()
 	{
@@ -889,16 +821,14 @@
 				continue;
 			}
 
-			if ( list.HasClass( "observe-staff-list" ) || list.Box.Rect.Height <= 1f )
+			if ( list.Box.Rect.Height <= 1f )
 			{
 				continue;
 			}
 
 			var maxY = LifePunchUiScrollPolicy.GetMeasuredScrollMaxY( list );
 			var remaining = maxY - list.ScrollOffset.y;
-			// Preserve the top position when new content adds only a small overflow.
-			if ( list.ScrollOffset.y <= 0.01f
-				|| remaining > ObserveEndSnapDistance || remaining <= 0.01f )
+			if ( remaining > ObserveEndSnapDistance || remaining <= 0.01f )
 			{
 				continue;
 			}
@@ -909,15 +839,8 @@
 
 	private void RecomputeDataHash()
 	{
-		// Permission changes must repaint even when the protected source is empty or unavailable.
-		var canViewObserve = StaffObserveHost.CanViewObserve();
-		var hash = HashCode.Combine( canViewObserve, canViewObserve ? StaffMenuHost.AuditVersion : 0,
-			DateTime.UtcNow.Ticks / TimeSpan.TicksPerMinute );
-		if ( IsAuditView && !canViewObserve )
-		{
-			_dataHash = hash;
-			return;
-		}
+		// Hash the active view data and ring version. A minute bucket refreshes relative timestamps.
+		var hash = HashCode.Combine( StaffMenuHost.AuditVersion, DateTime.UtcNow.Ticks / TimeSpan.TicksPerMinute );
 
 		if ( ActiveView == ObserveView.Sentinel )
 		{
@@ -959,7 +882,7 @@
 			hash = HashCode.Combine( hash, _sanctionsSubjectId, canViewSanctions,
 				_sanctionsSearchText, _sanctionsTypeFilter, _portalLinkCopied );
 
-			if ( _sanctionsSubjectId != 0 )
+			if ( canViewSanctions && _sanctionsSubjectId != 0 )
 			{
 				var sanctionState = StaffMenuHost.GetSanctionsState( _sanctionsSubjectId );
 				hash = HashCode.Combine( hash, (int)sanctionState );
@@ -986,36 +909,40 @@
 			{
 				foreach ( var rank in LpParityHost.ObservedRanks() )
 				{
-					hash = HashCode.Combine( hash, rank.Id );
 					hash = HashCode.Combine( hash, rank.Name, rank.Order, rank.ColorHex, rank.IsDefault,
 						rank.PermissionCount, rank.HoldersOnline, rank.HasWildcard );
 				}
 			}
 		}
 
-		if ( canViewObserve )
+		hash = HashCode.Combine( hash,
+			StaffObserveSockets.SentinelEvents?.Count ?? -1,
+			StaffObserveSockets.EconomyDeltas?.Count ?? -1,
+			StaffObserveSockets.OfflineStaff?.Count ?? -1 );
+
+		if ( StaffObserveSockets.SentinelEvents is { } sentinelEvents )
 		{
-			hash = HashCode.Combine( hash,
-				StaffObserveSockets.SentinelEvents?.Count ?? -1,
-				StaffObserveSockets.EconomyDeltas?.Count ?? -1,
-				StaffObserveSockets.OfflineStaff?.Count ?? -1 );
-
-			if ( StaffObserveSockets.SentinelEvents is { } sentinelEvents )
+			foreach ( var entry in sentinelEvents.Take( DisplayCap ) )
 			{
-				foreach ( var entry in sentinelEvents.Take( DisplayCap ) )
-				{
-					hash = HashCode.Combine( hash, entry.When, entry.SteamId, entry.SteamName, entry.Exploit, entry.Detail );
-				}
+				hash = HashCode.Combine( hash, entry.When, entry.SteamId, entry.SteamName, entry.Exploit, entry.Detail );
 			}
+		}
 
-			if ( StaffObserveSockets.EconomyDeltas is { } economyDeltas )
+		if ( StaffObserveSockets.EconomyDeltas is { } economyDeltas )
+		{
+			foreach ( var entry in economyDeltas.Take( DisplayCap ) )
 			{
-				foreach ( var entry in economyDeltas.Take( DisplayCap ) )
-				{
-					hash = HashCode.Combine( hash, entry.When, entry.SteamId, entry.Name, entry.Amount, entry.IsCredit, entry.Source );
-				}
+				hash = HashCode.Combine( hash, entry.When, entry.SteamId, entry.Name, entry.Amount, entry.IsCredit, entry.Source );
 			}
+		}
 
+		if ( StaffObserveSockets.OfflineStaff is { } offlineStaff )
+		{
+			foreach ( var entry in offlineStaff.Take( DisplayCap ) )
+			{
+				hash = HashCode.Combine( hash, entry.SteamId, entry.Name, entry.Role, entry.RankColorHex,
+					entry.LastSeen, entry.TotalPlaytime );
+			}
 		}
 
 		_dataHash = hash;
@@ -1079,10 +1006,8 @@
 	private IReadOnlyList<StaffMenuPlayer> SanctionsSubjectMatches()
 	{
 		var query = _sanctionsSearchText?.Trim() ?? "";
-		// R-2639-A / R-2640-A: permission is NOT a filter here. Every online player stays in the list; the
-		// option button renders disabled with its reason when the viewer lacks the scope. Filtering them out
-		// hid the existence of the player, which is what the ruling forbids.
 		return StaffMenuHost.OnlinePlayers()
+			.Where( player => StaffMenuHost.CanViewSanctions( player.SteamId ) )
 			.Where( player => query.Length == 0
 				|| player.Name.Contains( query, StringComparison.OrdinalIgnoreCase )
 				|| player.Role.Contains( query, StringComparison.OrdinalIgnoreCase )
@@ -1159,8 +1084,6 @@
 
 	private string SanctionsRecordCountText( SanctionsReadState state )
 	{
-		if ( !StaffMenuHost.CanViewSanctions( _sanctionsSubjectId ) ) return "Restricted";
-
 		if ( state is SanctionsReadState.Populated or SanctionsReadState.Filtered )
 		{
 			var count = StaffMenuHost.GetSanctions( _sanctionsSubjectId ).Count;
@@ -1200,7 +1123,7 @@
 		StateHasChanged();
 	}
 
-	// An unavailable audit snapshot count must not be displayed as zero activity.
+	// Remote clients cannot read this host-ring count; do not display it as zero activity.
 	private static string RecordedActionsText( int count )
 	{
 		if ( !StaffObserveHost.RingLivesHere )
@@ -1213,20 +1136,11 @@
 
 	private string StaffLogEmptyText() =>
 		_staffActorFilter == 0
-			? "No staff actions in the available audit snapshot."
-			: $"No staff actions recorded for {_staffActorFilterName} in the available audit snapshot.";
+			? "No staff actions recorded in this boot's ring."
+			: $"No staff actions recorded for {_staffActorFilterName} in this boot's ring.";
 
 	private string StaffLogOverflowText( int total ) =>
-		$"Showing the newest {DisplayCap} of {total} staff actions in the snapshot -- view the rest in Audit.";
-
-	private void OpenStaffChat()
-	{
-		if ( _view == ObserveView.StaffChat ) return;
-		_chatReturnView = _view;
-		SetView( ObserveView.StaffChat );
-	}
-
-	private void CloseStaffChat() => SetView( _chatReturnView );
+		$"Showing the newest {DisplayCap} of {total} staff actions in the ring -- the Audit tab reaches the rest.";
 
 	private void SetView( ObserveView view )
 	{
@@ -1247,7 +1161,7 @@
 	{
 		if ( view == ObserveView.Sentinel ) return "observe-tab-selected-sentinel";
 		if ( view == ObserveView.Economy ) return "observe-tab-selected-economy";
-		if ( view is ObserveView.Staff or ObserveView.StaffChat ) return "observe-tab-selected-staff";
+		if ( view == ObserveView.Staff ) return "observe-tab-selected-staff";
 		if ( view == ObserveView.Sanctions ) return "observe-tab-selected-sanctions";
 		if ( view == ObserveView.Ranks ) return "observe-tab-selected-ranks";
 		return "observe-tab-selected-neutral";
@@ -1257,7 +1171,7 @@
 	{
 		if ( view == ObserveView.Sentinel ) return "observe-tab-sentinel";
 		if ( view == ObserveView.Economy ) return "observe-tab-economy";
-		if ( view is ObserveView.Staff or ObserveView.StaffChat ) return "observe-tab-staff";
+		if ( view == ObserveView.Staff ) return "observe-tab-staff";
 		if ( view == ObserveView.Sanctions ) return "observe-tab-sanctions";
 		if ( view == ObserveView.Ranks ) return "observe-tab-ranks";
 		return "observe-tab-neutral";
@@ -1268,17 +1182,12 @@
 		=> StaffMenuHost.AuditActionTone( action );
 
 	protected override int BuildHash()
-	{
-		// Recheck grants independently of the data cadence so revocation also hides cached rows.
-		var canViewObserve = StaffObserveHost.CanViewObserve();
-		var canViewSanctions = StaffMenuHost.CanViewSanctions( _sanctionsSubjectId );
-		return HashCode.Combine(
+		// Hash the sanctions response revision, subject and state directly so answers repaint
+		// without waiting for the data cadence. Mode and return controls are also view state.
+		=> HashCode.Combine(
 			HashCode.Combine( ActiveView, _dataHash, _staffActorFilter, _sanctionsSubjectId,
 				_sanctionsSubjectName, _sanctionsSearchText, _sanctionsTypeFilter, _portalLinkCopied ),
 			HashCode.Combine( SanctionsOnly, OnReturnToProfile is not null, _subjectSeedAdopted,
-				canViewObserve, canViewSanctions, LpParityHost.CanViewRanks() ),
-			HashCode.Combine( canViewSanctions ? StaffMenuHost.SanctionsClientRevision : 0,
-				canViewSanctions ? StaffMenuHost.SanctionsAnsweredFor : 0L,
-				(int)CurrentSanctionsState, canViewObserve ? StaffMenuHost.AuditVersion : 0 ) );
-	}
+				StaffMenuHost.SanctionsClientRevision, StaffMenuHost.SanctionsAnsweredFor,
+				(int)StaffMenuHost.GetSanctionsState( _sanctionsSubjectId ), StaffMenuHost.AuditVersion ) );
 }

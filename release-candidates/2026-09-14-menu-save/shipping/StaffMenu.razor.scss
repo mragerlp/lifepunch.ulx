@@ -59,7 +59,7 @@ $tone-rust: #9a3412;
 $tone-slate: #334155;
 $tone-gold: #a16207;
 
-@import "../lifepunchcore/LifePunchUiFooter.razor.scss";
+@import "LifePunchUiFooter.razor.scss";
 
 .lifepunchulx {
 	position: absolute;
@@ -1729,16 +1729,6 @@ $tone-gold: #a16207;
 		text-align: center;
 	}
 
-	.pocket-slot-firearm {
-		flex-shrink: 0;
-		width: 48px;
-		height: 24px;
-		background-image: url("/ui/weapons/guns/M4_01.png");
-		background-size: cover;
-		background-position: center;
-		background-tint: $blue;
-	}
-
 	.pocket-slot .material-icons {
 		font-size: 20px;
 		color: $blue;
@@ -2942,14 +2932,6 @@ $tone-gold: #a16207;
 		font-size: 15px;
 	}
 
-	.settings-write-pending {
-		color: $amber;
-	}
-
-	.settings-write-success {
-		color: $success;
-	}
-
 	.settings-write-failed {
 		color: $danger;
 	}
@@ -3642,41 +3624,33 @@ $tone-gold: #a16207;
 		color: $muted;
 	}
 
-	// Website Save feedback as BUTTON STATE. Standalone classes emitted by Razor and placed last so
-	// they win over the shared disabled surface at equal specificity (house convention above).
-	.settings-save-saved,
-	.settings-save-saved:hover {
-		border-color: $success;
-		background-color: $success;
-		color: $text;
-		cursor: default;
-	}
+}
 
-	.settings-save-saved .material-icons {
-		color: $text;
-	}
-
-	.settings-save-failed,
-	.settings-save-failed:hover {
-		border-color: $danger;
-		background-color: rgba($danger, 0.85);
-		color: $text;
-	}
-
-	.settings-save-failed .material-icons {
-		color: $text;
-	}
-
+// Standalone save states follow disabled rules so confirmation remains legible.
+.lifepunchulx {
+	.settings-save-pending,
 	.settings-save-pending .material-icons {
 		color: $amber;
 	}
 
-	// Active toggle tiles (R2 P1). The severity and tone hover rules paint the glyph the same blue as the
-	// toggle-on hover fill; these standalone rules sit last so glyph and label stay $text on hover.
-	.action-toggle-on:hover .material-icons,
-	.action-toggle-on:hover .action-label,
-	.action-toggle-on:hover .action-description {
-		color: $text;
+	.settings-save-confirmed,
+	.settings-save-confirmed:hover {
+		border-color: $success;
+		background-color: rgba($success, 0.10);
+		color: $success;
 	}
 
+	.settings-save-confirmed .material-icons {
+		color: $success;
+	}
+
+	.settings-save-spinner {
+		animation: ulx-website-save-spin 1s linear infinite;
+	}
+}
+
+// Same rotation pattern as the native UI styles.scss spin animation.
+@keyframes ulx-website-save-spin {
+	from { transform: rotate(0deg); }
+	to { transform: rotate(360deg); }
 }

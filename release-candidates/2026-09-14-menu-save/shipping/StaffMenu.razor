@@ -54,18 +54,20 @@
 					<span>@category</span>
 				</button>
 			}
-			@* R-2639-A / R-2640-A: the menu decides nothing about VISIBILITY. Every tab renders for
-			   every rank; the portal decides actionability. CanUseWaypoints() and CanViewAudit() are
-			   deliberately retained -- B6 and the tab bodies still use them for ENABLED/greyed state --
-			   but they no longer decide whether the tab exists. *@
-			<button class="@TabClass( TabWaypoints )" style="@TopTabAccentStyle( TabWaypoints )"
-			        onclick="@(() => SelectTab( TabWaypoints ))">
-				<span>Waypoints</span>
-			</button>
-			<button class="@TabClass( TabAudit )" style="@TopTabAccentStyle( TabAudit )"
-			        onclick="@(() => SelectTab( TabAudit ))">
-				<span>Audit</span>
-			</button>
+			@if ( StaffMenuHost.CanUseWaypoints() )
+			{
+				<button class="@TabClass( TabWaypoints )" style="@TopTabAccentStyle( TabWaypoints )"
+				        onclick="@(() => SelectTab( TabWaypoints ))">
+					<span>Waypoints</span>
+				</button>
+			}
+			@if ( StaffMenuHost.CanViewAudit() )
+			{
+				<button class="@TabClass( TabAudit )" style="@TopTabAccentStyle( TabAudit )"
+				        onclick="@(() => SelectTab( TabAudit ))">
+					<span>Audit</span>
+				</button>
+			}
 		</div>
 
 		<div class="ulx-workspace">
@@ -207,7 +209,7 @@
 
 						@if ( entries.Count == 0 && auditTotal == 0 && !StaffMenuHost.AuditFeedIsReadableHere )
 						{
-							@* The adapter distinguishes denied, unavailable and pending reads from an empty result. *@
+							@* Audit rows stay in the host process and are unavailable to remote clients. *@
 							<div class="audit-empty">@StaffMenuHost.AuditFeedUnavailableText</div>
 						}
 						else if ( entries.Count == 0 && auditTotal == 0 )
@@ -224,7 +226,7 @@
 							<div class="audit-overflow">@( $"Showing the newest {auditShown} of {entries.Count} entries — refine the filters to reach older rows." )</div>
 						}
 
-						@if ( auditTotal > 0 && ( _auditWindowMinutes > 0 || !string.IsNullOrEmpty( StaffMenuHost.AuditCoverageText ) ) )
+						@if ( _auditWindowMinutes > 0 && auditTotal > 0 )
 						{
 							<div class="audit-coverage">@AuditCoverageNote()</div>
 						}
@@ -244,16 +246,19 @@
 				<div class="wp-bar">
 					<i class="material-icons">place</i>
 					<TextEntry class="wp-input" Placeholder="Waypoint name" Value:bind="@_waypointName"/>
-					<button class="wp-btn wp-btn-quiet @( !StaffMenuHost.CanUseWaypoints() || string.IsNullOrWhiteSpace( _waypointName ) ? "control-disabled" : "" )"
-					        tooltip="@( StaffMenuHost.CanUseWaypoints() ? "Teleport to this waypoint" : "Requires permission: command.waypoint.use" )"
+					<button class="wp-btn wp-btn-quiet @( string.IsNullOrWhiteSpace( _waypointName ) ? "control-disabled" : "" )"
+					        tooltip="Teleport to this waypoint"
 					        onclick="@GoToTypedWaypoint">
 						<i class="material-icons">my_location</i> Go
 					</button>
-						<button class="wp-btn wp-btn-primary @( !StaffMenuHost.CanEditWaypoints() || string.IsNullOrWhiteSpace( _waypointName ) ? "control-disabled" : "" )"
-						        tooltip="@( StaffMenuHost.CanEditWaypoints() ? "Save a waypoint at your current position + view angle" : "Requires permission: command.waypoint.edit" )"
+					@if ( StaffMenuHost.CanEditWaypoints() )
+					{
+						<button class="wp-btn wp-btn-primary @( string.IsNullOrWhiteSpace( _waypointName ) ? "control-disabled" : "" )"
+						        tooltip="Save a waypoint at your current position + view angle"
 						        onclick="@SetWaypointFromInput">
 							<i class="material-icons">push_pin</i> Set here
 						</button>
+					}
 				</div>
 
 				@{
@@ -270,11 +275,7 @@
 							<button class="wp-go-row" tooltip="Teleport here" onclick="@(() => GoToWaypoint( name ))">
 								<i class="material-icons" style="@AppliedGlyphStyle()">my_location</i> Go
 							</button>
-							@if ( !StaffMenuHost.CanEditWaypoints() )
-							{
-								<button class="wp-clear control-disabled" tooltip="Requires permission: command.waypoint.edit"><i class="material-icons">delete</i></button>
-							}
-							else
+							@if ( StaffMenuHost.CanEditWaypoints() )
 							{
 								@if ( _wpPendingDelete == name )
 								{
@@ -295,11 +296,7 @@
 						</div>
 					}
 
-					@if ( !StaffMenuHost.CanUseWaypoints() )
-					{
-						<div class="wp-empty">Requires permission: command.waypoint.use.</div>
-					}
-					else if ( waypoints.Count == 0 && StaffMenuHost.WaypointsReadIsUncertain )
+					@if ( waypoints.Count == 0 && StaffMenuHost.WaypointsReadIsUncertain )
 					{
 						<div class="wp-empty">
 							Waypoint status unavailable — the server store did not return a confirmed answer.
@@ -328,7 +325,8 @@
 
 				</div>
 
-				@{
+				@if ( StaffMenuHost.CanView( "ability.teleport" ) )
+				{
 					<div class="wp-return-section">
 						<div class="wp-head">
 							<i class="material-icons" style="@AppliedGlyphStyle()">undo</i>
@@ -342,27 +340,27 @@
 						<div class="wp-bar wp-return-bar">
 							<i class="material-icons">person</i>
 							<TextEntry class="wp-input" Placeholder="SteamID64" Value:bind="@_returnSteamId"/>
-					<button class="wp-btn go wp-move-primary @( !StaffMenuHost.CanView( "ability.teleport" ) || string.IsNullOrWhiteSpace( _returnSteamId ) ? "control-disabled wp-go-disabled" : "" )"
-							        tooltip="@( StaffMenuHost.CanView( "ability.teleport" ) ? "Return this player to their previous position" : "Requires permission: ability.teleport" )"
+					<button class="wp-btn go wp-move-primary @( string.IsNullOrWhiteSpace( _returnSteamId ) ? "control-disabled wp-go-disabled" : "" )"
+							        tooltip="Return this player to their previous position"
 							        onclick="@ReturnTypedPlayer">
 								<i class="material-icons">undo</i> Return
 							</button>
 						</div>
 
 						<div class="wp-move-bar">
-						<button class="wp-btn go wp-move-primary @( !StaffMenuHost.CanView( "ability.teleport" ) || string.IsNullOrWhiteSpace( _returnSteamId ) ? "control-disabled wp-go-disabled" : "" )"
-							        tooltip="@( StaffMenuHost.CanView( "ability.teleport" ) ? "Teleport yourself to this player" : "Requires permission: ability.teleport" )"
+						<button class="wp-btn go wp-move-primary @( string.IsNullOrWhiteSpace( _returnSteamId ) ? "control-disabled wp-go-disabled" : "" )"
+							        tooltip="Teleport yourself to this player"
 							        onclick="@GotoTypedPlayer">
 								<i class="material-icons">my_location</i> Goto
 							</button>
-						<button class="wp-btn go wp-move-primary @( !StaffMenuHost.CanView( "ability.teleport" ) || string.IsNullOrWhiteSpace( _returnSteamId ) ? "control-disabled wp-go-disabled" : "" )"
-							        tooltip="@( StaffMenuHost.CanView( "ability.teleport" ) ? "Bring this player to you" : "Requires permission: ability.teleport" )"
+						<button class="wp-btn go wp-move-primary @( string.IsNullOrWhiteSpace( _returnSteamId ) ? "control-disabled wp-go-disabled" : "" )"
+							        tooltip="Bring this player to you"
 							        onclick="@BringTypedPlayer">
 								<i class="material-icons">pan_tool</i> Bring
 							</button>
 						</div>
 
-						@* Recent movement filters the current bounded audit sample by exact action name.
+						@* Recent movement uses the shared audit ring and exact action-name filter.
 						   CanViewAudit is required separately from the waypoint teleport permission. *@
 						@if ( StaffMenuHost.CanViewAudit() )
 						{
@@ -376,10 +374,10 @@
 							<div class="lp-ui-scroll-region wp-events">
 								@if ( teleportEvents.Count == 0 )
 								{
-									@* A readable sample may omit older events; absence here does not establish no activity. *@
+									@* Remote clients cannot read the host ring; qualify the result before showing an empty feed. *@
 									@if ( StaffMenuHost.AuditFeedIsReadableHere )
 									{
-										<div class="section-empty">No teleport or waypoint events in the current audit sample.</div>
+										<div class="section-empty">No teleport or waypoint activity recorded yet.</div>
 									}
 									else
 									{
@@ -399,14 +397,8 @@
 									@* Show the total alongside the render cap so a partial view is identifiable. *@
 									@if ( teleportEvents.Count > 50 )
 									{
-										<div class="section-empty">@( $"Showing the newest 50 of {teleportEvents.Count} matching events in the current audit sample. Open Audit for the remaining received events." )</div>
+										<div class="section-empty">@( $"Showing the newest 50 of {teleportEvents.Count} — the Audit tab reaches the rest." )</div>
 									}
-								}
-								@if ( StaffMenuHost.AuditFeedIsReadableHere )
-								{
-									<div class="section-empty">@( string.IsNullOrEmpty( StaffMenuHost.AuditCoverageText )
-										? "This list covers a bounded audit sample; older events may be absent."
-										: StaffMenuHost.AuditCoverageText )</div>
 								}
 								<div class="wp-events-tail"></div>
 							</div>
@@ -432,15 +424,15 @@
 								@($"Linked from the “{StaffMenuHost.NetworkIdentifier}” tag in the tab bar — staff click it to copy your link.")
 							</div>
 
-								<div class="settings-bar @( StaffMenuHost.CanEditSettings() ? "" : "control-disabled" )" tooltip="@( StaffMenuHost.CanEditSettings() ? "Network website" : "Requires permission: lifepunchulx.settings.edit" )">
+							@if ( StaffMenuHost.CanEditSettings() )
+							{
+								<div class="settings-bar">
 									<i class="material-icons">link</i>
-									<TextEntry Disabled="@(!StaffMenuHost.CanEditSettings())" style="@( StaffMenuHost.CanEditSettings() ? "" : "pointer-events: none; opacity: 0.45;" )" class="settings-input" Placeholder="https://your-network.com" Value:bind="@_websiteDraft"/>
-									@* Save feedback is BUTTON STATE only (green "Saved", red "Failed"). No row is ever
-									   inserted below the bar, so the Appearance card underneath never moves. *@
+									<TextEntry class="settings-input" Placeholder="https://your-network.com" Value:bind="@_websiteDraft"/>
 									<button class="settings-btn save settings-save-primary @( WebsiteSaveClasses() )"
-									        tooltip="@WebsiteSaveTooltip()"
+									        tooltip="@( StaffMenuHost.WebsiteWriteIsPending ? "Waiting for the server API result" : ( WebsiteDraftIsDirty() ? "Save the network website link" : "No website changes to save" ) )"
 									        onclick="@SaveWebsiteFromInput">
-										<i class="material-icons">@WebsiteSaveIcon()</i> @WebsiteSaveLabel()
+										<i class="material-icons @( StaffMenuHost.WebsiteWriteIsPending ? "settings-save-spinner" : "" )">@( StaffMenuHost.WebsiteWriteIsPending ? "sync" : ( _websiteSaveConfirmed ? "check" : "save" ) )</i> @WebsiteSaveLabel()
 									</button>
 								</div>
 
@@ -459,6 +451,21 @@
 										<span class="settings-current-text">@( StaffMenuHost.WebsiteReadIsUncertain ? "Website status unavailable — the server store did not return a confirmed answer." : "No website set yet — leave the field empty and Save to clear it." )</span>
 									}
 								</div>
+								@if ( !StaffMenuHost.WebsiteWriteIsPending && !StaffMenuHost.WebsiteWriteSucceeded
+								      && !string.IsNullOrWhiteSpace( StaffMenuHost.WebsiteWriteMessage ) )
+								{
+									<div class="settings-write-result settings-write-failed">
+										<i class="material-icons">error</i>
+										<span>@StaffMenuHost.WebsiteWriteMessage</span>
+									</div>
+								}
+							}
+							else
+							{
+								<div class="settings-readonly">
+									@( StaffMenuHost.HasWebsite ? $"{(StaffMenuHost.WebsiteReadIsUncertain ? "Last known: " : "")}{StaffMenuHost.WebsiteUrl}" : ( StaffMenuHost.WebsiteReadIsUncertain ? "Website status unavailable." : "No website set." ) )
+								</div>
+							}
 						</div>
 
 						<div class="settings-group settings-appearance">
@@ -619,21 +626,16 @@
 		{
 			@* StaffObserve owns the sanction subject and request. The profile route seeds it and
 			   provides a return path; per-subject CanViewSanctions applies inside the child.
-			   The full Observe hub below still CONSULTS the stricter CanViewObserve, but since R9 it no
-			   longer gates whether that hub renders -- only whether its records are supplied. *@
+			   The full Observe hub retains the stricter CanViewObserve gate. *@
 			<StaffObserve SanctionsOnly="@true"
 			              SubjectSeedSteamId="@_sanctionsSteamId"
 			              SubjectSeedVersion="@_sanctionsSeedVersion"
 			              OnManagePlayer="@((long steamId) => OpenSanctionManagementFromObserve( steamId ))"
 			              OnReturnToProfile="@(() => ReturnToProfileFromSanctions())" />
 		}
-		else if ( _activeTab == TabPlayerMgmt )
+		else if ( _activeTab == TabPlayerMgmt && StaffObserveHost.CanViewObserve() )
 		{
-			@* R-2639-A / R-2640-A: the hub no longer requires CanViewObserve() in order to RENDER. It mounts
-			   for every rank, and StaffObserve itself states the reason and withholds the records when the
-			   viewer lacks portal.audit.view or the rank-order floor. What stood here was an "Access
-			   restricted" lock screen that REPLACED the entire page -- the exact shape the ruling forbids.
-			   CanViewObserve() is deliberately retained and is still consulted inside the child for state. *@
+			@* The full read-only Observe hub requires portal.audit.view and rank order 10 or higher. *@
 			@* Attribute set kept TOTAL against the SanctionsOnly mount above: if the engine ever reuses the sibling
 			   panel positionally, the hub must not inherit the seed mode, seed or return path. *@
 			<StaffObserve SanctionsOnly="@false"
@@ -641,6 +643,21 @@
 			              SubjectSeedVersion="@( 0 )"
 			              OnReturnToProfile="@((Action?)null)"
 			              OnManagePlayer="@((long steamId) => OpenSanctionManagementFromObserve( steamId ))" />
+		}
+		else if ( _activeTab == TabPlayerMgmt )
+		{
+			<div class="settings">
+				<div class="settings-head">
+					<i class="material-icons">groups</i>
+					<span>Player &amp; Staff Management</span>
+				</div>
+
+				<div class="coming-soon">
+					<i class="material-icons">lock</i>
+					<span class="coming-soon-title">Access restricted</span>
+					<span class="coming-soon-hint">Your current rank does not have access to Observe.</span>
+				</div>
+			</div>
 		}
 		else
 		{
@@ -801,8 +818,6 @@
 					var steamIdCopied = _copiedSteamId == profileSteamId;
 					var profileHealthAction = detail.Found ? GetProfileStatAction( "sethealth", profileSteamId ) : null;
 					var profileArmorAction = detail.Found ? GetProfileStatAction( "setarmor", profileSteamId ) : null;
-					var profileMoneyAction = detail.Found ? GetProfileStatAction( "givemoney", profileSteamId ) : null;
-					var profileJobAction = detail.Found ? GetProfileStatAction( "setjob", profileSteamId ) : null;
 					<div class="profile">
 						<div class="profile-head">
 							<button class="icon-btn" onclick="@CloseProfile"><i class="material-icons" style="@AppliedGlyphStyle()">arrow_back</i></button>
@@ -918,16 +933,7 @@
 											<div class="profile-rows">
 												<div class="field">
 													<span class="k">Job</span>
-													@if ( profileJobAction is not null )
-													{
-														<button type="button" class="v profile-stat-value v-job @( detail.Found ? "" : "v-tone-zero" )" style="@( detail.Found && !string.IsNullOrEmpty( detail.JobColorHex ) ? $"color: {detail.JobColorHex}" : "" )"
-														        tooltip="Open Set Job for this player; pick a job and confirm"
-														        onclick="@(() => OpenProfileStat( "setjob", profileSteamId ))">@detail.Job</button>
-													}
-													else
-													{
-														<span class="v v-job @( detail.Found ? "" : "v-tone-zero" )" style="@( detail.Found && !string.IsNullOrEmpty( detail.JobColorHex ) ? $"color: {detail.JobColorHex}" : "" )">@( detail.Found ? detail.Job : "—" )</span>
-													}
+													<span class="v v-job @( detail.Found ? "" : "v-tone-zero" )" style="@( detail.Found && !string.IsNullOrEmpty( detail.JobColorHex ) ? $"color: {detail.JobColorHex}" : "" )">@( detail.Found ? detail.Job : "—" )</span>
 												</div>
 												<div class="field">
 													<span class="k">Base salary</span>
@@ -935,29 +941,11 @@
 												</div>
 												<div class="field">
 													<span class="k">Cash</span>
-													@if ( profileMoneyAction is not null )
-													{
-														<button type="button" class="v profile-stat-value @( detail.Wallet > 0 ? "v-cash" : "v-tone-zero" )"
-														        tooltip="Open Give Money for this player; choose an amount and confirm"
-														        onclick="@(() => OpenProfileStat( "givemoney", profileSteamId, "cash" ))">@( "$" + detail.Wallet.ToString( "N0", System.Globalization.CultureInfo.InvariantCulture ) )</button>
-													}
-													else
-													{
-														<span class="v @( detail.Wallet > 0 ? "v-cash" : "v-tone-zero" )">@( detail.Found ? "$" + detail.Wallet.ToString( "N0", System.Globalization.CultureInfo.InvariantCulture ) : "—" )</span>
-													}
+													<span class="v @( detail.Wallet > 0 ? "v-cash" : "v-tone-zero" )">@( detail.Found ? "$" + detail.Wallet.ToString( "N0", System.Globalization.CultureInfo.InvariantCulture ) : "—" )</span>
 												</div>
 												<div class="field">
 													<span class="k">Bank</span>
-													@if ( profileMoneyAction is not null )
-													{
-														<button type="button" class="v profile-stat-value @( detail.Bank > 0 ? "v-cash" : "v-tone-zero" )"
-														        tooltip="Open Give Money for this player; choose an amount and confirm"
-														        onclick="@(() => OpenProfileStat( "givemoney", profileSteamId, "bank" ))">@( "$" + detail.Bank.ToString( "N0", System.Globalization.CultureInfo.InvariantCulture ) )</button>
-													}
-													else
-													{
-														<span class="v @( detail.Bank > 0 ? "v-cash" : "v-tone-zero" )">@( detail.Found ? "$" + detail.Bank.ToString( "N0", System.Globalization.CultureInfo.InvariantCulture ) : "—" )</span>
-													}
+													<span class="v @( detail.Bank > 0 ? "v-cash" : "v-tone-zero" )">@( detail.Found ? "$" + detail.Bank.ToString( "N0", System.Globalization.CultureInfo.InvariantCulture ) : "—" )</span>
 												</div>
 											</div>
 											<div class="profile-footer">
@@ -1058,15 +1046,18 @@
 								<i class="material-icons">bolt</i> Actions for this player
 							</button>
 
-							@{
+							@if ( StaffMenuHost.CanViewAudit() || StaffMenuHost.CanViewSanctions( profileSteamId ) )
+							{
 								<div class="profile-links">
-									@{
-										<button class="confirm-btn confirm-btn-secondary btn-observe @( StaffMenuHost.CanViewAudit() ? "" : "control-disabled confirm-disabled-state" )" tooltip="@( StaffMenuHost.CanViewAudit() ? "View audit log" : "Requires permission: portal.audit.view" )" onclick="@(() => OpenAuditForPlayer( profileSteamId ))">
+									@if ( StaffMenuHost.CanViewAudit() )
+									{
+										<button class="confirm-btn confirm-btn-secondary btn-observe" onclick="@(() => OpenAuditForPlayer( profileSteamId ))">
 											<i class="material-icons">history</i> View audit log
 										</button>
 									}
-								@{
-									<button class="confirm-btn confirm-btn-secondary confirm-btn-severe-state @( StaffMenuHost.CanViewSanctions( profileSteamId ) ? "" : "control-disabled confirm-disabled-state" )" tooltip="@( StaffMenuHost.CanViewSanctions( profileSteamId ) ? "Open sanctions" : "Requires permission to view this player’s sanctions" )" onclick="@(() => OpenSanctionsForPlayer( profileSteamId ))">
+								@if ( StaffMenuHost.CanViewSanctions( profileSteamId ) )
+								{
+									<button class="confirm-btn confirm-btn-secondary confirm-btn-severe-state" onclick="@(() => OpenSanctionsForPlayer( profileSteamId ))">
 											<i class="material-icons">gavel</i> Open sanctions
 										</button>
 									}
@@ -1100,17 +1091,9 @@
 											{
 												var item = slot < pocketItems.Count ? pocketItems[slot] : "";
 												var empty = string.IsNullOrWhiteSpace( item );
-												var pocketIcon = empty ? "inbox" : StaffMenuHost.GetPocketItemIcon( profileSteamId, slot );
 												<div class="@PocketSlotClass( empty, pocketLoading, pocketUnavailable )">
 													<span class="pocket-slot-number">@( slot + 1 )</span>
-													@if ( pocketIcon == "firearm" )
-													{
-														<div class="pocket-slot-firearm"></div>
-													}
-													else
-													{
-														<i class="material-icons pocket-slot-fallback">@pocketIcon</i>
-													}
+													<i class="material-icons pocket-slot-fallback">@( empty ? "inventory_2" : "deployed_code" )</i>
 													<span class="pocket-slot-label">@PocketSlotLabel( item, pocketLoading, pocketUnavailable )</span>
 												</div>
 											}
@@ -1255,8 +1238,7 @@
 						&& moneyState is StaffMoneyGrantState.Pending or StaffMoneyGrantState.Succeeded or StaffMoneyGrantState.Unknown;
 					var moneyNavigationLocked = pending.Dispatch == StaffDispatchKind.GiveMoney
 						&& moneyState is StaffMoneyGrantState.Pending or StaffMoneyGrantState.Unknown;
-					var actionEligible = IsEnabled( pending, selected, hasTarget );
-					var formCanConfirm = actionEligible && requiredArgsComplete && !moneyLocked && HasRequiredToggleState( pending );
+					var formCanConfirm = requiredArgsComplete && !moneyLocked && HasRequiredToggleState( pending );
 					var targetContext = pending.Dispatch == StaffDispatchKind.GiveMoney
 					                    && moneyState != StaffMoneyGrantState.Idle
 					                    && _moneyGrantTargetSteamId != 0
@@ -1319,7 +1301,7 @@
 										@foreach ( var preset in StaffMenuConfig.DurationPresets( pending.Key ) )
 										{
 											var allowed = pending.Key != "ban"
-												|| StaffMenuHost.CanView( "player.ban" );
+												|| StaffMenuConfig.IsBanDurationAllowed( StaffMenuHost.LocalRankOrder, preset.Hours );
 											<button class="chip @( _duration == preset.Token ? "chip-active" : "" ) @( allowed ? "" : "control-disabled" )"
 											        onclick="@(() => SetDuration( preset.Token, allowed ))">
 												@preset.Label
@@ -1481,11 +1463,11 @@
 							<div class="arg-required-hint">Complete the required fields before confirming.</div>
 						}
 
-						@* Every armed action keeps its existing restatement in normal flow from form opening.
-						   Its natural height stays present when the first click arms, so the second click
-						   keeps the same Confirm hit target without a guessed spacer height. *@
+						@* Moderation keeps the actual restatement in normal flow from form opening. Its natural
+						   content height stays present when the first click arms, so the second click keeps
+						   the same Confirm hit target without a guessed spacer height. *@
 						@if ( pending.Dispatch != StaffDispatchKind.GiveMoney
-						      && ( RequiresArmedConfirm( pending ) || IsToggleAction( pending ) ) )
+						      && ( pending.Category == StaffMenuActions.CategoryModeration || pending.Key == "forcerpname" || IsToggleAction( pending ) || ( _severeConfirm && requiredArgsComplete ) ) )
 						{
 							<div class="grant-confirm">
 								@* Severe actions and Jail restate the action and target. Money uses the reserved status lane. *@
@@ -1499,7 +1481,7 @@
 						@if ( ( pending.Key != "kick" || requiredArgsComplete ) && !moneyLocked )
 						{
 							<button class="@( ConfirmButtonClasses( pending, formCanConfirm ) )"
-							        tooltip="@ConfirmButtonTooltip( pending, formCanConfirm, actionEligible )"
+							        tooltip="@ConfirmButtonTooltip( pending, formCanConfirm )"
 							        onclick="@(() => ConfirmArgs( selected ))">
 								<i class="material-icons">@( _severeConfirm ? "warning" : "check" )</i> @ConfirmButtonLabel( pending )
 							</button>
@@ -1523,7 +1505,7 @@
 							: SelfToggleActionKeys.Contains( action.Key ) && StaffMenuHost.IsSelfToggleOn( action.Key );
 							<button class="action-btn @( ActionStateClasses( action, enabled, toggleOn ) )"
 							        style="@ActionRestingAccentStyle( action, enabled, toggleOn )"
-						        tooltip="@( LacksPermission( action ) ? PermissionLockedHint( action ) : ( !enabled && action.TargetMode == StaffActionTarget.SelfOnly ? SelfOnlyLockedHint : ( string.IsNullOrEmpty( action.Tooltip ) ? action.Label : action.Tooltip ) ) )"
+						        tooltip="@( string.IsNullOrEmpty( action.Tooltip ) ? action.Label : action.Tooltip )"
 						        onclick="@(() => OnActionClick( action, selected, enabled ))">
 							@if ( action.Key == "xray" )
 							{
@@ -1536,17 +1518,9 @@
 							<span class="action-label">@action.Label</span>
 							@* Keep at most one hint per card. The no-target banner already explains missing selection;
 							   per-card reasons describe other conditions once a target is selected. *@
-							@if ( LacksPermission( action ) )
-							{
-								<span class="action-disabled-reason">@PermissionLockedCardHint</span>
-							}
-							else if ( !enabled && action.TargetMode == StaffActionTarget.OtherPlayer && _selectedSteamId is not null )
+							@if ( !enabled && action.TargetMode == StaffActionTarget.OtherPlayer && _selectedSteamId is not null )
 							{
 								<span class="action-disabled-reason">@( IsSelfSanction( action, selected.SteamId ) ? "Cannot target yourself" : "Target protected" )</span>
-							}
-							else if ( !enabled && action.TargetMode == StaffActionTarget.SelfOnly )
-							{
-								<span class="action-disabled-reason">@SelfOnlyLockedHint</span>
 							}
 						</button>
 					}
@@ -1563,10 +1537,7 @@
 
 				@if ( visibleActions.Count == 0 )
 				{
-					@* Rank can no longer empty this grid (R-2639-A / R-2640-A): ungranted tiles render greyed.
-					   Kept as a structural guard for a tab the catalogue defines no action for -- but the old
-					   "available to your rank" copy would now be a lie, so it states the real condition. *@
-					<div class="empty">No actions are defined for this tab.</div>
+					<div class="empty">No @_activeTab.ToLower() actions available to your rank.</div>
 				}
 				}
 				}
@@ -1612,7 +1583,6 @@
 	// Roster scans check catalogue permissions per player, so use a slower cadence
 	// than volatile player stats such as health and balances.
 	private RealTimeSince _sinceRosterRefresh;
-	private bool _hadWaypointPermission;
 	private const float RosterRefreshInterval = 1.0f;
 
 	// Hash roster identity as well as count so replacements, renames and rank changes repaint.
@@ -1708,6 +1678,11 @@
 	private string _websiteDraftBaseline = "";
 	private bool _websiteDraftTouched;
 	private int _lastSettingsVersion;
+	private int _lastWebsiteWriteVersion;
+	private bool _websiteWriteAwaitingResult;
+	private bool _websiteSaveConfirmed;
+	private string _websiteSubmittedDraft = "";
+	private RealTimeSince _websiteSaveConfirmedAge;
 	private bool _websiteCopied;
 	private long _copiedSteamId;
 	private bool _currentCopied;
@@ -1866,8 +1841,6 @@
 
 	private string ConfirmActionHint( StaffAction action )
 	{
-		if ( LacksPermission( action ) ) return PermissionLockedHint( action );
-
 		if ( !HasRequiredToggleState( action ) )
 		{
 			return "Waiting for the player's current state before confirming.";
@@ -1890,11 +1863,8 @@
 			: "Confirm once more to run this action on the live host.";
 	}
 
-	private string ConfirmButtonTooltip( StaffAction action, bool requiredArgsComplete, bool actionEligible )
+	private string ConfirmButtonTooltip( StaffAction action, bool requiredArgsComplete )
 	{
-		if ( LacksPermission( action ) ) return PermissionLockedHint( action );
-		if ( !actionEligible ) return "This action is unavailable for the current target or player state";
-
 		if ( !HasRequiredToggleState( action ) )
 		{
 			return "Current player state is unavailable";
@@ -1969,10 +1939,17 @@
 	private string _jobFilter = "";
 	private bool _jobDropdownOpen;
 
+	// Set only by the local host; a shared HUD is never an owned menu root.
+	internal GameObject? OwnedMenuRoot { get; set; }
+
 	// Use the shared LifePunch menu combat lock so UI clicks cannot fire, use world entities
 	// or switch equipment while the menu is open.
 	protected override void OnEnabled()
 	{
+		// Reopening must not replay an earlier write's success.
+		_lastWebsiteWriteVersion = StaffMenuHost.WebsiteWriteVersion;
+		_websiteWriteAwaitingResult = false;
+		_websiteSaveConfirmed = false;
 		LifePunchMenuInputBlock.NotifyMenuOpened();
 	}
 
@@ -1993,6 +1970,10 @@
 		// the Settings view is visited).
 		StaffMenuHost.RefreshSettings();
 
+		if ( StaffMenuHost.CanUseWaypoints() )
+		{
+			StaffMenuHost.RefreshWaypoints();
+		}
 	}
 
 	protected override void OnUpdate()
@@ -2046,26 +2027,17 @@
 			rosterHash = HashCode.Combine( rosterHash, permissionId, StaffMenuHost.CanView( permissionId ) );
 		}
 
-		// A revoked grant or unavailable target cannot retain an armed confirmation for a later regrant.
-		if ( _pendingAction is { } pending )
+		// If a live rank edit revokes the permission behind an already-open privileged surface,
+		// leave that surface on the same one-second permission sample instead of keeping stale data open.
+		if ( (_activeTab == TabWaypoints && !StaffMenuHost.CanUseWaypoints())
+		     || (_activeTab == TabAudit && !StaffMenuHost.CanViewAudit())
+		     || (_activeTab == TabSanctions && !StaffMenuHost.CanViewSanctions( _sanctionsSteamId )) )
 		{
-			var selected = _players.FirstOrDefault( player => player.SteamId == _selectedSteamId );
-			if ( !IsEnabled( pending, selected, selected.SteamId != 0 ) ) InvalidateArmedConfirm();
+			_activeTab = StaffMenuActions.CategoryModeration;
+			_sanctionsSteamId = 0;
+			_pendingAction = null;
+			InvalidateArmedConfirm();
 		}
-
-		// Keep sections discoverable after revocation; adapters withhold protected data.
-		var canUseWaypoints = StaffMenuHost.CanUseWaypoints();
-		if ( !canUseWaypoints )
-		{
-			StaffMenuHost.GetWaypoints();
-			_wpPendingDelete = null;
-		}
-		else if ( !_hadWaypointPermission )
-		{
-			StaffMenuHost.RefreshWaypoints();
-		}
-		_hadWaypointPermission = canUseWaypoints;
-		StaffMenuHost.RefreshAuditSnapshot();
 
 		if ( _inventoryModalOpen && !StaffMenuHost.CanViewInventory( _inventoryModalSteamId ) )
 		{
@@ -2263,7 +2235,6 @@
 
 	private void AskClearWaypoint( string name )
 	{
-		if ( !StaffMenuHost.CanEditWaypoints() ) return;
 		_wpPendingDelete = name;
 		StateHasChanged();
 	}
@@ -2276,7 +2247,6 @@
 
 	private void ConfirmClearWaypoint( string name )
 	{
-		if ( !StaffMenuHost.CanEditWaypoints() ) return;
 		_wpPendingDelete = null;
 		ClearWaypoint( name );
 	}
@@ -2428,10 +2398,7 @@
 			: null;
 	}
 
-	// A money shortcut presets the Give Money destination. _destination is sticky across forms
-	// (BeginArgs never resets it; SetDestination is its only writer), so the preset is applied
-	// explicitly once the form is open instead of trusting the default.
-	private void OpenProfileStat( string actionKey, long steamId, string? destination = null )
+	private void OpenProfileStat( string actionKey, long steamId )
 	{
 		// Recheck the catalog, permission and current roster policy at the click boundary.
 		var action = GetProfileStatAction( actionKey, steamId );
@@ -2443,11 +2410,6 @@
 		ConfirmTarget( steamId );
 		_activeTab = action.Category;
 		BeginArgs( action );
-
-		if ( destination is not null && _pendingAction == action )
-		{
-			SetDestination( destination );
-		}
 	}
 
 	// A profile shortcut must commit its subject before opening the named form.
@@ -2536,64 +2498,17 @@
 	}
 
 	// Sort from least to most severe. Stable ordering preserves catalogue order within each tier.
-	// R-2639-A / R-2640-A: permission is NOT a filter here. Every action in the active tab renders;
-	// ungranted ones come back false from IsEnabled and grey through the existing control-disabled
-	// state. The xray gate moved out for the same reason -- IsEnabled already disables it, so it now
-	// greys in place instead of vanishing. This method is now purely "which actions belong to this
-	// tab", which is the only question the MENU is allowed to answer.
 	private List<StaffAction> GetVisibleTabActions() =>
 		StaffMenuActions.All
-			.Where( a => a.Category == _activeTab )
+			.Where( a => a.Category == _activeTab && StaffMenuHost.CanView( a.PermissionId ) && ( a.Key != "xray" || StaffMenuHost.CanUseXray() ) )
 			.OrderBy( a => a.Severity )
 			.ToList();
 
-	/// <summary>Ruled hint for a self-only tile locked because another player is the selected target.</summary>
-	private const string SelfOnlyLockedHint = "Self-only. Select yourself to use.";
-
-	/// <summary>
-	/// Self-only abilities are available only when the selected target IS the caller, or nothing is selected.
-	/// With another player selected they are disabled: never hidden, never re-routed, never applied to self.
-	/// </summary>
-	private bool SelfOnlyTargetIsCaller() =>
-		_selectedSteamId is null || _selectedSteamId == StaffMenuHost.LocalSteamId;
-
-	/// <summary>
-	/// True when a tile is inert specifically because the viewer's ranks do not grant it, as opposed to
-	/// a targeting condition. Kept separate so a greyed card can state the REAL reason.
-	/// </summary>
-	private static bool LacksPermission( StaffAction action )
-		=> !StaffMenuHost.CanView( action.PermissionId );
-
-	/// <summary>
-	/// Tooltip for a tile greyed by a missing portal grant. Names the permission id so an operator can
-	/// say exactly what to request, instead of the tile simply being absent.
-	/// </summary>
-	private static string PermissionLockedHint( StaffAction action )
-		=> $"Requires permission: {action.PermissionId}";
-
-	/// <summary>
-	/// Short ON-CARD marker for the same state. The full permission id lives in the tooltip because an
-	/// id is wider than an action card: rendering it inline overflowed the tile on both edges.
-	/// </summary>
-	private const string PermissionLockedCardHint = "Requires permission!";
-
-	private bool IsEnabled( StaffAction action, StaffMenuPlayer selected, bool hasTarget )
+	private static bool IsEnabled( StaffAction action, StaffMenuPlayer selected, bool hasTarget )
 	{
-		// Permission is a STATE, not a filter (R-2639-A / R-2640-A). This stays the FIRST check so an
-		// ungranted tile reports the missing grant rather than a downstream targeting condition.
-		if ( LacksPermission( action ) )
-		{
-			return false;
-		}
-
 		if ( action.Key == "xray" && !StaffMenuHost.CanUseXray() )
 		{
 			return false;
-		}
-
-		if ( action.TargetMode == StaffActionTarget.SelfOnly )
-		{
-			return SelfOnlyTargetIsCaller();
 		}
 
 		if ( action.TargetMode != StaffActionTarget.OtherPlayer )
@@ -2610,7 +2525,7 @@
 
 	private void OnActionClick( StaffAction action, StaffMenuPlayer selected, bool enabled )
 	{
-		if ( !enabled || !IsEnabled( action, selected, selected.SteamId != 0 ) )
+		if ( !enabled || IsSelfSanction( action, selected.SteamId ) )
 		{
 			return;
 		}
@@ -2718,11 +2633,8 @@
 
 	private void ConfirmArgs( StaffMenuPlayer selected )
 	{
-		if ( _pendingAction is not { } action ) return;
-		if ( !IsEnabled( action, selected, selected.SteamId != 0 ) )
+		if ( _pendingAction is not { } action || ( action.Key == "xray" && !StaffMenuHost.CanUseXray() ) )
 		{
-			InvalidateArmedConfirm();
-			StateHasChanged();
 			return;
 		}
 
@@ -2901,7 +2813,7 @@
 	{
 		if ( action.Key == "ban" )
 		{
-			return StaffMenuConfig.IsBanDurationTokenAllowed( value );
+			return StaffMenuConfig.IsBanDurationTokenAllowed( StaffMenuHost.LocalRankOrder, value );
 		}
 
 		return StaffMenuConfig.TryNormalizeDurationToken( value, allowPermanent: false, out _ );
@@ -2926,14 +2838,6 @@
 	private void Dispatch( StaffAction action, StaffMenuPlayer selected, IReadOnlyDictionary<string, string>? args = null,
 		bool? expectedToggleState = null )
 	{
-		// Recheck eligibility at the last local boundary; the host remains authoritative.
-		if ( !IsEnabled( action, selected, selected.SteamId != 0 ) )
-		{
-			InvalidateArmedConfirm();
-			StateHasChanged();
-			return;
-		}
-
 		// Direct self toggles capture this click; confirmed forms retain the state they displayed.
 		if ( args is null && StaffMenuHost.IsGuardedStatusToggle( action.Key ) )
 		{
@@ -2945,14 +2849,6 @@
 
 		if ( action.TargetMode != StaffActionTarget.OtherPlayer )
 		{
-			// Belt and braces behind the eligibility gate: a self-only ability never dispatches while another
-			// player is the selected target, so it can never be silently applied to the caller instead.
-			if ( action.TargetMode == StaffActionTarget.SelfOnly && !SelfOnlyTargetIsCaller() )
-			{
-				Log.Warning( $"[lifepunchulx] Refused self-only '{action.Key}': selected target {_selectedSteamId} is not the caller {StaffMenuHost.LocalSteamId}." );
-				return;
-			}
-
 			StaffMenuHost.Dispatch( action, StaffMenuHost.LocalSteamId, args, expectedToggleState );
 			return;
 		}
@@ -3138,9 +3034,6 @@
 	private void ToggleAuditActions()
 	{
 		_auditActionOpen = !_auditActionOpen;
-		// Only one audit popover may be open at a time -- the invariant SelectTab already enforces when
-		// it clears both. Opening this one closes the window picker.
-		_auditWindowOpen = false;
 		StateHasChanged();
 	}
 
@@ -3176,7 +3069,6 @@
 
 	private void RefreshAudit()
 	{
-		StaffMenuHost.RefreshAuditSnapshot( true );
 		_auditActionOpen = false;
 		_auditWindowOpen = false;
 		StateHasChanged();
@@ -3227,8 +3119,6 @@
 	private void ToggleAuditWindow()
 	{
 		_auditWindowOpen = !_auditWindowOpen;
-		// Mirror of ToggleAuditActions: opening the window picker closes the action picker.
-		_auditActionOpen = false;
 		StateHasChanged();
 	}
 
@@ -3252,7 +3142,6 @@
 	/// </summary>
 	private string AuditCoverageNote()
 	{
-		if ( !string.IsNullOrEmpty( StaffMenuHost.AuditCoverageText ) ) return StaffMenuHost.AuditCoverageText;
 		var oldest = StaffMenuHost.AuditOldestUtc();
 		if ( oldest is null )
 		{
@@ -3299,7 +3188,6 @@
 	/// <summary>Open the Audit viewer pre-filtered to one player (from their profile pane).</summary>
 	private void OpenAuditForPlayer( long steamId )
 	{
-		if ( steamId == 0 || !StaffMenuHost.CanViewAudit() ) return;
 		ResetPocketModal();
 		ResetInventoryModal();
 		_auditPlayerId = steamId.ToString();
@@ -3323,7 +3211,7 @@
 	/// </summary>
 	private void OpenSanctionsForPlayer( long steamId )
 	{
-		if ( steamId == 0 || !StaffMenuHost.CanViewSanctions( steamId ) )
+		if ( steamId == 0 )
 		{
 			return;
 		}
@@ -3525,7 +3413,6 @@
 	/// <summary>Save a waypoint at the caller's current position under the typed name.</summary>
 	private void SetWaypointFromInput()
 	{
-		if ( !StaffMenuHost.CanEditWaypoints() ) return;
 		if ( string.IsNullOrWhiteSpace( _waypointName ) )
 		{
 			return;
@@ -3558,7 +3445,6 @@
 	/// </summary>
 	private void DispatchTypedTeleport( string actionKey )
 	{
-		if ( !StaffMenuHost.CanView( "ability.teleport" ) ) return;
 		if ( !long.TryParse( _returnSteamId?.Trim(), out var steamId ) || steamId == 0 )
 		{
 			return;
@@ -3604,7 +3490,7 @@
 			return;
 		}
 
-		StaffMenuHost.RequestClose();
+		StaffMenuHost.RequestClose( this );
 	}
 
 	/// <summary>Collapse / expand the Online Players sidebar to a slim rail.</summary>
@@ -3946,13 +3832,7 @@
 #if LIFEPUNCH_LOCAL
 	private const string BuildBranch = "editor stub (LIFEPUNCH_LOCAL)";
 #else
-	// This is a DIAGNOSTICS field, so it must not assert what it cannot read. As a const it claimed
-	// "workbench (s&box)" for EVERY non-local build, including a published package running on someone
-	// else's server, which is exactly the case where a reader needs the truth. No engine sensor reports
-	// the source branch or package identity, so report only what can actually be sensed -- editor or
-	// not -- and say UNKNOWN rather than name a build we have no way to identify.
-	private static string BuildBranch
-		=> Sandbox.Application.IsEditor ? "workbench (s&box editor)" : "UNKNOWN";
+	private const string BuildBranch = "workbench (s&box)";
 #endif
 
 	// Count staff in the cached roster to avoid repeating per-player permission scans.
@@ -4059,128 +3939,83 @@
 			( StaffMenuHost.WebsiteUrl ?? string.Empty ).Trim(),
 			StringComparison.Ordinal );
 
-	// Save feedback is TRANSIENT UI STATE on the button: never persisted with the settings, never carried
-	// across a panel close/open. "Saved" holds WebsiteSavedHoldSeconds or until the input changes; "Failed"
-	// holds until the input changes. A fresh Settings open starts idle: SeedWebsiteDraft() is the reset site.
-	private const float WebsiteSavedHoldSeconds = 2f;
-	private int _websiteWriteVersionSeen;
-	private string _websiteSubmittedDraft = "";
-	private bool _websiteSaveConfirmed;
-	private bool _websiteSaveFailed;
-	private RealTimeSince _websiteSaveConfirmedAge;
-
-	private void ResetWebsiteSaveFeedback()
-	{
-		_websiteWriteVersionSeen = StaffMenuHost.WebsiteWriteVersion;
-		_websiteSaveConfirmed = false;
-		_websiteSaveFailed = false;
-	}
-
-	private void SyncWebsiteSaveFeedback()
-	{
-		if ( _activeTab != TabSettings )
-		{
-			return;
-		}
-
-		var version = StaffMenuHost.WebsiteWriteVersion;
-		if ( version != _websiteWriteVersionSeen )
-		{
-			_websiteWriteVersionSeen = version;
-			if ( !StaffMenuHost.WebsiteWriteIsPending )
-			{
-				_websiteSaveConfirmed = StaffMenuHost.WebsiteWriteSucceeded;
-				_websiteSaveFailed = !StaffMenuHost.WebsiteWriteSucceeded
-					&& !string.IsNullOrWhiteSpace( StaffMenuHost.WebsiteWriteMessage );
-				_websiteSaveConfirmedAge = 0;
-			}
-		}
-
-		if ( _websiteSaveConfirmed && ( _websiteSaveConfirmedAge >= WebsiteSavedHoldSeconds || WebsiteDraftIsDirty() ) )
-		{
-			_websiteSaveConfirmed = false;
-		}
-
-		if ( _websiteSaveFailed && !string.Equals( ( _websiteDraft ?? string.Empty ).Trim(), _websiteSubmittedDraft, StringComparison.Ordinal ) )
-		{
-			_websiteSaveFailed = false;
-		}
-	}
-
-	private bool WebsiteSaveIsSaved() => !StaffMenuHost.WebsiteWriteIsPending && _websiteSaveConfirmed;
-
-	private bool WebsiteSaveIsFailed() => !StaffMenuHost.WebsiteWriteIsPending && _websiteSaveFailed;
-
 	private string WebsiteSaveClasses()
 	{
-		if ( !StaffMenuHost.CanEditSettings() ) return "control-disabled settings-save-disabled";
-		if ( StaffMenuHost.WebsiteWriteIsPending )
-		{
-			return "control-disabled settings-save-disabled settings-save-pending";
-		}
-
-		if ( WebsiteSaveIsSaved() )
-		{
-			return "settings-save-saved";
-		}
-
-		var classes = WebsiteSaveIsFailed() ? "settings-save-failed" : "";
-		if ( !WebsiteDraftIsDirty() )
+		var classes = "";
+		if ( !WebsiteDraftIsDirty() || StaffMenuHost.WebsiteWriteIsPending )
 		{
 			classes += " control-disabled settings-save-disabled";
 		}
+
+		if ( StaffMenuHost.WebsiteWriteIsPending )
+			classes += " settings-save-pending";
+		else if ( _websiteSaveConfirmed )
+			classes += " settings-save-confirmed";
 
 		return classes.Trim();
 	}
 
 	private string WebsiteSaveLabel()
 	{
-		if ( StaffMenuHost.WebsiteWriteIsPending ) return "Saving";
-		if ( WebsiteSaveIsSaved() ) return "Saved";
-		if ( WebsiteSaveIsFailed() ) return "Failed";
-		return "Save";
+		if ( StaffMenuHost.WebsiteWriteIsPending )
+			return "Saving...";
+		if ( !_websiteSaveConfirmed )
+			return "Save";
+		return StaffMenuHost.WebsiteSaveConfirmationLabel;
 	}
 
-	private string WebsiteSaveIcon()
-	{
-		if ( StaffMenuHost.WebsiteWriteIsPending ) return "sync";
-		if ( WebsiteSaveIsSaved() ) return "check";
-		if ( WebsiteSaveIsFailed() ) return "error";
-		return "save";
-	}
+	private bool WebsiteDraftMatchesSubmission() => string.Equals(
+		( _websiteDraft ?? string.Empty ).Trim(), _websiteSubmittedDraft, StringComparison.Ordinal );
 
-	private string WebsiteSaveTooltip()
+	private void SyncWebsiteSaveFeedback()
 	{
-		if ( !StaffMenuHost.CanEditSettings() ) return "Requires permission: lifepunchulx.settings.edit";
-		if ( StaffMenuHost.WebsiteWriteIsPending ) return "Waiting for the server API result";
-		if ( WebsiteSaveIsSaved() ) return string.IsNullOrWhiteSpace( StaffMenuHost.WebsiteWriteMessage ) ? "Saved" : StaffMenuHost.WebsiteWriteMessage;
-		if ( WebsiteSaveIsFailed() ) return $"{StaffMenuHost.WebsiteWriteMessage} — edit and Save to retry";
-		return WebsiteDraftIsDirty() ? "Save the network website link" : "No website changes to save";
+		if ( _websiteSaveConfirmed && ( _websiteSaveConfirmedAge >= 2f || !WebsiteDraftMatchesSubmission() ) )
+			_websiteSaveConfirmed = false;
+
+		var version = StaffMenuHost.WebsiteWriteVersion;
+		if ( version == _lastWebsiteWriteVersion )
+			return;
+
+		_lastWebsiteWriteVersion = version;
+		if ( !_websiteWriteAwaitingResult || StaffMenuHost.WebsiteWriteIsPending )
+			return;
+
+		// Only a new terminal result for this submission earns button confirmation.
+		// Settings reads never advance WebsiteWriteVersion. The host correlates write replies.
+		_websiteWriteAwaitingResult = false;
+		_websiteSaveConfirmed = StaffMenuHost.WebsiteWriteSucceeded && WebsiteDraftMatchesSubmission();
+		if ( _websiteSaveConfirmed )
+			_websiteSaveConfirmedAge = 0;
 	}
 
 	/// <summary>Save the typed network website URL (host re-checks the owner grant). Empty clears it.</summary>
 	private void SaveWebsiteFromInput()
 	{
-		if ( !StaffMenuHost.CanEditSettings() || !WebsiteDraftIsDirty() || StaffMenuHost.WebsiteWriteIsPending )
+		if ( !WebsiteDraftIsDirty() || StaffMenuHost.WebsiteWriteIsPending )
 		{
 			return;
 		}
 
 		_websiteDraftTouched = true;
 		_websiteSubmittedDraft = ( _websiteDraft ?? string.Empty ).Trim();
+		_lastWebsiteWriteVersion = StaffMenuHost.WebsiteWriteVersion;
+		_websiteWriteAwaitingResult = true;
 		_websiteSaveConfirmed = false;
-		_websiteSaveFailed = false;
 		StaffMenuHost.SaveWebsite( _websiteSubmittedDraft );
+		SyncWebsiteSaveFeedback();
+		StateHasChanged();
 	}
 
 	private void SeedWebsiteDraft()
 	{
+		// Returning to Settings must not replay a prior confirmation.
+		_lastWebsiteWriteVersion = StaffMenuHost.WebsiteWriteVersion;
+		_websiteWriteAwaitingResult = false;
+		_websiteSaveConfirmed = false;
 		_websiteDraft = StaffMenuHost.WebsiteUrl;
 		_websiteDraftBaseline = _websiteDraft;
 		_websiteDraftTouched = false;
 		_lastSettingsVersion = StaffMenuHost.SettingsVersion;
-		// Every Settings open (including a fresh panel after close/reopen) starts with an idle Save button.
-		ResetWebsiteSaveFeedback();
 	}
 
 	private void SyncWebsiteDraftFromHost()
@@ -4311,7 +4146,7 @@
 					HashCode.Combine( _auditScope, _auditWindowMinutes, _auditWindowOpen ),
 					HashCode.Combine(
 						HashCode.Combine( _websiteDraft, _websiteCopied, _copiedSteamId, _currentCopied,
-							StaffMenuHost.SettingsVersion, StaffMenuHost.WebsiteWriteVersion, _websiteSaveConfirmed, _websiteSaveFailed ),
+							StaffMenuHost.SettingsVersion, StaffMenuHost.WebsiteWriteVersion, _websiteSaveConfirmed ),
 						HashCode.Combine( _pocketModalOpen, _pocketModalSteamId, StaffMenuHost.GetPocketSlotCount(),
 							StaffMenuHost.PocketClientRevision,
 							StaffMenuHost.PocketAnsweredFor,

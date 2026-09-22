@@ -1,0 +1,139 @@
+// PROPRIETARY & CONFIDENTIAL — © 2026 lifepunch.co. All rights reserved.
+
+// Reuse Observe rows/hints and the shell's input/button tokens. These spacing/type
+// tokens use the existing LifePunch scale; this panel owns layout only.
+$chat-space: 8px;
+$chat-space-small: 4px;
+$chat-type: 12px;
+// Match the shared Confirm button height so both composer controls align.
+$chat-control-height: 38px;
+$chat-action-width: 80px;
+// Match the existing ULX structural border when native chat omits a color.
+$chat-border: #343536;
+
+.lifepunchulx {
+	.staff-chat-panel {
+		flex-direction: column;
+		flex: 1 1 0;
+		min-height: 0;
+		min-width: 0;
+		overflow: hidden;
+		gap: $chat-space;
+	}
+
+	.staff-chat-heading {
+		flex-direction: column;
+		flex-shrink: 0;
+		min-width: 0;
+	}
+
+	.staff-chat-composer {
+		flex-direction: row;
+		align-items: flex-start;
+		flex-shrink: 0;
+		min-width: 0;
+		gap: $chat-space;
+	}
+
+	.staff-chat-composer-main,
+	.staff-chat-composer-actions {
+		flex-direction: column;
+		min-width: 0;
+		gap: $chat-space;
+	}
+
+	.staff-chat-composer-main {
+		flex: 1 1 0;
+	}
+
+	.staff-chat-composer-actions {
+		flex-shrink: 0;
+		width: $chat-action-width;
+	}
+
+	.staff-chat-list {
+		flex-direction: column;
+		flex: 1 1 0;
+		min-height: 0;
+		min-width: 0;
+		overflow-y: scroll;
+	}
+
+	.staff-chat-panel .staff-chat-message {
+		flex-direction: column;
+		align-items: flex-start;
+		flex-shrink: 0;
+		min-width: 0;
+		gap: $chat-space-small;
+	}
+
+	.staff-chat-author-line {
+		flex-direction: row;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: $chat-space;
+		flex-shrink: 0;
+		min-width: 0;
+	}
+
+	.staff-chat-author,
+	.staff-chat-role {
+		font-size: $chat-type;
+		font-weight: 600;
+	}
+
+	.staff-chat-role {
+		padding: $chat-space-small $chat-space;
+		border: 1px solid $chat-border;
+		border-radius: $chat-space-small;
+		max-width: 100%;
+		white-space: normal;
+		word-break: break-all;
+	}
+
+	.staff-chat-text {
+		font-size: $chat-type;
+		white-space: normal;
+		word-break: break-all;
+		width: 100%;
+		min-width: 0;
+		flex-shrink: 0;
+	}
+
+	.staff-chat-panel .staff-chat-input {
+		flex-shrink: 0;
+		min-width: 0;
+		width: 100%;
+		height: $chat-control-height;
+	}
+
+	.staff-chat-panel .staff-chat-input-disabled {
+		align-items: center;
+		pointer-events: none;
+		opacity: 0.45;
+	}
+
+	.staff-chat-send,
+	.staff-chat-count {
+		flex-shrink: 0;
+	}
+
+	.staff-chat-panel .staff-chat-send {
+		margin-top: 0;
+		width: 100%;
+		height: $chat-control-height;
+		align-self: stretch;
+	}
+
+	.staff-chat-hint {
+		min-width: 0;
+		white-space: normal;
+	}
+
+	.staff-chat-count {
+		width: 100%;
+		justify-content: center;
+		text-align: center;
+		white-space: nowrap;
+	}
+}
