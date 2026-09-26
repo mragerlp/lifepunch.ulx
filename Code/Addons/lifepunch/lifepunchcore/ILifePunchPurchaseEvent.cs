@@ -16,11 +16,8 @@ using Dxura.RP.Game;
 namespace LifePunch.DXRP.Addons;
 
 /// <summary>
-/// The universal purchase event (ECONOMY_DOCTRINE House Pattern) — raised by
-/// <see cref="LifePunchUpgradeLedger"/> AFTER a purchase record is committed, never before
-/// (commit-then-raise: the event announces a fact; UPGRADE_ARC_DESIGN decision 8).
-/// Native s&box event-interface idiom per LIFEPUNCH_ADDON_ARCHITECTURE Rule 1 — the stat
-/// ledger and future consumers listen here; vanilla-observed events join the same family later.
+/// Purchase notification raised by LifePunchUpgradeLedger after the record is written
+/// to host storage. Consumers receive committed purchases through this scene event.
 /// </summary>
 public interface ILifePunchPurchaseEvent : ISceneEvent<ILifePunchPurchaseEvent>
 {
@@ -28,7 +25,7 @@ public interface ILifePunchPurchaseEvent : ISceneEvent<ILifePunchPurchaseEvent>
 	/// <param name="player">Purchaser (may be invalid if disconnected between commit and raise).</param>
 	void OnPurchase( Player player, string trackId, int tier, float costBtc );
 #else
-	/// <param name="player">Local lane has no DXRP Player — always null.</param>
+	/// <param name="player">The local fixture build passes null.</param>
 	void OnPurchase( object player, string trackId, int tier, float costBtc );
 #endif
 }

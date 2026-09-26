@@ -24,9 +24,8 @@ public enum LifePunchTrackSubjectKind
 }
 
 /// <summary>
-/// Data definition of a 5-tier purchase track (ECONOMY_DOCTRINE House Pattern).
-/// Adding a track is a registration, never ledger code — the ledger is the landlord,
-/// tracks are tenants (UPGRADE_ARC_DESIGN decisions 5/11).
+/// Purchase-track definition registered independently of the ledger.
+/// MaxTier and PriceLadderSats define the available tiers and their base prices.
 /// </summary>
 public sealed class LifePunchTrackDef
 {
@@ -42,12 +41,16 @@ public sealed class LifePunchTrackDef
 		=> tier >= 1 && tier <= PriceLadderSats.Length ? PriceLadderSats[tier - 1] : -1;
 }
 
-/// <summary>Track registry — trackId-scoped, addon-agnostic. Tenants register at their own init.</summary>
+/// <summary>
+/// Track registry keyed by track ID. Each addon registers its tracks during initialization.
+/// </summary>
 public static class LifePunchUpgradeTracks
 {
 	private static readonly Dictionary<string, LifePunchTrackDef> Tracks = new( StringComparer.Ordinal );
 
-	/// <summary>Idempotent — re-registering the same id replaces the definition (hotload-safe).</summary>
+	/// <summary>
+	/// Register or replace a track definition by ID, including during hotload.
+	/// </summary>
 	public static void Register( LifePunchTrackDef def )
 	{
 		if ( def is null || string.IsNullOrWhiteSpace( def.Id ) )

@@ -1271,7 +1271,7 @@
 								<span class="arg-target">Target: @targetContext</span>
 								@if ( IsToggleAction( pending ) )
 								{
-									<span class="arg-target">Current state: @ToggleStateLabel( _pendingToggleState )</span>
+									<span class="arg-target">Current state: @( pending.Key == "xray" && !_pendingToggleState.HasValue ? "Not reported" : ToggleStateLabel( _pendingToggleState ) )</span>
 								}
 							</div>
 							<button class="icon-btn @( moneyNavigationLocked ? "control-disabled" : "" )"
@@ -1783,7 +1783,9 @@
 		action.Key is "god" or "cloak" or "incognito" or "noclip" or "freeze" or "xray";
 
 	private bool HasRequiredToggleState( StaffAction action ) =>
-		!IsToggleAction( action ) || _pendingToggleState.HasValue;
+		!IsToggleAction( action ) || _pendingToggleState.HasValue
+		// X-ray is the native self toggle: older parents report its result in chat only.
+		|| ( action.Key == "xray" && StaffMenuHost.CanUseXray() );
 
 	private static string ToggleStateLabel( bool? state ) => state switch
 	{
@@ -1881,7 +1883,7 @@
 		if ( IsToggleAction( action ) )
 		{
 			return action.Key == "xray"
-				? "Double-click to switch X-ray between on and off."
+				? "Double-click to toggle X-ray. The game reports the result in chat."
 				: ( UsesDoubleClickConfirm( action ) ? "Double-click to confirm this change." : "Confirm this change." );
 		}
 
@@ -4315,7 +4317,8 @@
 						HashCode.Combine( _pocketModalOpen, _pocketModalSteamId, StaffMenuHost.GetPocketSlotCount(),
 							StaffMenuHost.PocketClientRevision,
 							StaffMenuHost.PocketAnsweredFor,
-							StaffMenuHost.PocketIsLoading( _pocketModalSteamId ) ),
+							StaffMenuHost.PocketIsLoading( _pocketModalSteamId ),
+							StaffMenuHost.PocketIsUnavailable( _pocketModalSteamId ) ),
 						HashCode.Combine( _inventoryModalOpen, _inventoryModalSteamId,
 							StaffMenuHost.InventoryClientRevision, StaffMenuHost.InventoryAnsweredFor,
 							(int)StaffMenuHost.GetInventoryState( _inventoryModalSteamId ) ) ) ),

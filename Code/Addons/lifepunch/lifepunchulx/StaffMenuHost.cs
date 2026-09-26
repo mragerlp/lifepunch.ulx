@@ -9,6 +9,7 @@
 // Presence in this repository or on the DXRP portal grants no rights to anyone else.
 // ─────────────────────────────────────────────────────────────────────────────
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Sandbox;
@@ -248,8 +249,6 @@ internal static class StaffMenuHost
 	{
 #if LIFEPUNCH_LOCAL
 		return steamId != 0;
-#elif LIFEPUNCH_PACKAGE
-		return false;
 #else
 		if ( steamId == 0 || !RankSystem.HasLocalPermission( Dxura.RP.Shared.Permission.ViewPocket ) )
 		{
@@ -264,7 +263,7 @@ internal static class StaffMenuHost
 	/// <summary>Start a correlated read through DXRP's existing pocket system.</summary>
 	public static void RequestPocket( long steamId )
 	{
-#if !LIFEPUNCH_LOCAL && !LIFEPUNCH_PACKAGE
+#if !LIFEPUNCH_LOCAL
 		var system = PocketSystem.Instance;
 		if ( !system.IsValid() || !CanViewPocket( steamId ) )
 		{
@@ -278,6 +277,11 @@ internal static class StaffMenuHost
 		}
 
 		var requestId = System.Guid.NewGuid();
+		_pocketRequestId = requestId;
+		_pocketRequestTarget = steamId;
+		_pocketRequestAge = 0;
+		_pocketRequestFailed = false;
+		_pocketResponseReceived = false;
 		system.BeginPocketViewClient( steamId, requestId );
 		system.RequestPocketContentsHost( steamId, requestId );
 #endif
@@ -287,12 +291,9 @@ internal static class StaffMenuHost
 	{
 #if LIFEPUNCH_LOCAL
 		return System.Array.Empty<string>();
-#elif LIFEPUNCH_PACKAGE
-		return System.Array.Empty<string>();
 #else
 		var system = PocketSystem.Instance;
-		return system.IsValid() && system.AdminViewPlayerId == steamId
-		       && !system.AdminViewIsLoading && !system.AdminViewIsUnavailable
+		return HasCurrentPocketView( system, steamId ) && !system.AdminViewIsLoading
 			? system.AdminViewItems
 			: System.Array.Empty<string>();
 #endif
@@ -301,20 +302,24 @@ internal static class StaffMenuHost
 	/// <summary>Display icon key for a slot in the current correlated pocket response.</summary>
 	public static string GetPocketItemIcon( long steamId, int slot )
 	{
-#if !LIFEPUNCH_LOCAL && !LIFEPUNCH_PACKAGE
+#if !LIFEPUNCH_LOCAL
 		var system = PocketSystem.Instance;
-		if ( system.IsValid() && system.AdminViewPlayerId == steamId
-		     && !system.AdminViewIsLoading && !system.AdminViewIsUnavailable
-		     && slot >= 0 && slot < system.AdminViewItems.Count && slot < system.AdminViewItemKinds.Count )
+		if ( HasCurrentPocketView( system, steamId ) && !system.AdminViewIsLoading
+		     && slot >= 0 && slot < system.AdminViewItems.Count )
 		{
-			return system.AdminViewItemKinds[slot] switch
+			// The parent supplies semantic categories. Never classify an item by its display name.
+			System.Collections.IList? kinds;
+			try { kinds = ReadPocketProperty( system, "AdminViewItemKinds" ) as System.Collections.IList; }
+			catch ( Exception ) { return "category"; }
+			if ( kinds is null || slot >= kinds.Count ) return "category";
+			return kinds[slot]?.ToString() switch
 			{
-				PocketItemKind.Printer => "attach_money",
-				PocketItemKind.Shipment => "inventory_2",
-				PocketItemKind.Firearm => GetPocketFirearmIcon( system.AdminViewRequestId ),
-				PocketItemKind.Plant => "local_florist",
-				PocketItemKind.Equipment => "build",
-				PocketItemKind.Medical => "local_hospital",
+				"Printer" => "attach_money",
+				"Shipment" => "inventory_2",
+				"Firearm" => GetPocketFirearmIcon( system.AdminViewRequestId ),
+				"Plant" => "local_florist",
+				"Equipment" => "build",
+				"Medical" => "local_hospital",
 				_ => "category"
 			};
 		}
@@ -350,11 +355,9 @@ internal static class StaffMenuHost
 	{
 #if LIFEPUNCH_LOCAL
 		return false;
-#elif LIFEPUNCH_PACKAGE
-		return false;
 #else
 		var system = PocketSystem.Instance;
-		return system.IsValid() && system.AdminViewPlayerId == steamId && system.AdminViewIsLoading;
+		return HasCurrentPocketView( system, steamId ) && system.AdminViewIsLoading;
 #endif
 	}
 
@@ -362,19 +365,15 @@ internal static class StaffMenuHost
 	{
 #if LIFEPUNCH_LOCAL
 		return false;
-#elif LIFEPUNCH_PACKAGE
-		return true;
 #else
 		var system = PocketSystem.Instance;
-		return !system.IsValid() || system.AdminViewPlayerId != steamId || system.AdminViewIsUnavailable;
+		return !HasCurrentPocketView( system, steamId );
 #endif
 	}
 
 	public static int PocketClientRevision
 	{
 #if LIFEPUNCH_LOCAL
-		get => 0;
-#elif LIFEPUNCH_PACKAGE
 		get => 0;
 #else
 		get => PocketSystem.Instance.IsValid() ? PocketSystem.Instance.AdminViewRevision : 0;
@@ -385,8 +384,6 @@ internal static class StaffMenuHost
 	{
 #if LIFEPUNCH_LOCAL
 		get => 0;
-#elif LIFEPUNCH_PACKAGE
-		get => 0;
 #else
 		get => PocketSystem.Instance.IsValid() ? PocketSystem.Instance.AdminViewPlayerId ?? 0 : 0;
 #endif
@@ -394,10 +391,70 @@ internal static class StaffMenuHost
 
 	public static void ClearPocketView()
 	{
-#if !LIFEPUNCH_LOCAL && !LIFEPUNCH_PACKAGE
+#if !LIFEPUNCH_LOCAL
+		_pocketRequestId = Guid.Empty;
+		_pocketRequestTarget = 0;
+		_pocketRequestFailed = false;
+		_pocketResponseReceived = false;
 		PocketSystem.Instance?.ClearPocketViewClient();
 #endif
 	}
+
+#if !LIFEPUNCH_LOCAL
+	private static Guid _pocketRequestId;
+	private static long _pocketRequestTarget;
+	private static RealTimeSince _pocketRequestAge;
+	private static bool _pocketRequestFailed;
+	private static bool _pocketResponseReceived;
+
+	// Older published parents have the secure request route but no explicit denial result.
+	// Only a fresh, permitted response can satisfy this view; timeout is never an empty pocket.
+	private static bool HasCurrentPocketView( PocketSystem system, long steamId )
+	{
+		if ( _pocketRequestId == Guid.Empty || steamId != _pocketRequestTarget || _pocketRequestFailed )
+			return false;
+
+		if ( !system.IsValid() || !CanViewPocket( steamId )
+		     || system.AdminViewPlayerId != steamId || system.AdminViewRequestId != _pocketRequestId )
+		{
+			_pocketRequestFailed = true;
+			return false;
+		}
+
+		if ( !_pocketResponseReceived && _pocketRequestAge >= 10f )
+		{
+			_pocketRequestFailed = true;
+			return false;
+		}
+
+		try
+		{
+			var unavailable = ReadPocketProperty( system, "AdminViewIsUnavailable" );
+			if ( unavailable is not null && unavailable is not false )
+			{
+				_pocketRequestFailed = true;
+				return false;
+			}
+		}
+		catch ( Exception )
+		{
+			_pocketRequestFailed = true;
+			return false;
+		}
+
+		if ( !system.AdminViewIsLoading ) _pocketResponseReceived = true;
+		return true;
+	}
+
+	private static object? ReadPocketProperty( PocketSystem system, string name )
+	{
+		var property = TypeLibrary.GetType<PocketSystem>()?.GetProperty( name );
+		if ( property is null ) return null;
+		if ( !property.CanRead || !property.IsGetMethodPublic || property.IsIndexer )
+			throw new InvalidOperationException( "Pocket metadata must have a public readable property." );
+		return property.GetValue( system );
+	}
+#endif
 
 	// --- Durable account inventory (read-only, host/API-backed) -----------
 
@@ -2535,7 +2592,16 @@ internal static class StaffMenuHost
 			return null;
 		}
 
-		return xray.IsActive;
+		// Published parents may not expose a status reader yet. Keep unknown state
+		// unavailable in the menu rather than guessing from command execution.
+		var state = TypeLibrary.GetType<Dxura.RP.Game.Commands.XrayCommand>()?.GetProperty( "IsActive" );
+		if ( state is null || !state.CanRead || !state.IsGetMethodPublic
+			|| state.IsIndexer || state.PropertyType != typeof( bool ) )
+		{
+			return null;
+		}
+
+		return state.GetValue( xray ) is bool active ? active : null;
 #endif
 	}
 
