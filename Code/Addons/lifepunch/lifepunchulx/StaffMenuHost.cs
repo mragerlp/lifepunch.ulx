@@ -742,7 +742,7 @@ internal static class StaffMenuHost
 
 	/// <summary>
 	/// Observed state used to describe a toggle's next operation. Match the source the native
-	/// command tests; null means unavailable, not OFF. X-ray is observable for the local player only.
+	/// command tests; null means the parent exposes no reader for this player.
 	/// </summary>
 	public static bool? GetCommandToggleState( string actionKey, long steamId )
 	{
@@ -756,7 +756,7 @@ internal static class StaffMenuHost
 		switch ( actionKey )
 		{
 			case "xray":
-				return player == Player.Local ? GetLocalXrayState() : null;
+				return GetXrayState( player );
 			case "god":
 				return player.HasStatus( Constants.GodStatus );
 			case "cloak":
@@ -791,7 +791,7 @@ internal static class StaffMenuHost
 
 		if ( actionKey == "xray" )
 		{
-			return GetLocalXrayState() == true;
+			return GetXrayState( Player.Local ) == true;
 		}
 
 		if ( actionKey == "noclip" )
@@ -1189,7 +1189,6 @@ internal static class StaffMenuHost
 	/// that grants them, so an operator can tell a staff member's own toggle from a player running
 	/// a command they should not have. Conditions (frozen/jailed/gagged) are done TO a player
 	/// rather than wielded by one, so they are never flagged illegitimate.
-	/// X-ray is included only for the local player; remote X-ray state is unavailable.
 	/// </summary>
 	public static IReadOnlyList<StaffStateFlag> GetStateFlags( long steamId )
 	{
@@ -1224,8 +1223,7 @@ internal static class StaffMenuHost
 			flags.Add( new StaffStateFlag( "Noclip", !allowed ) );
 		}
 
-		// Native X-ray belongs to this client; never attach its state to a remote player.
-		Power( player == Player.Local && GetLocalXrayState() == true, "X-ray", "command.xray" );
+		Power( GetXrayState( player ) == true, "X-ray", "command.xray" );
 
 		// Status ids are DXRP's own constants (Constants.FreezeStatus / PrisonerStatus / GaggedStatus).
 		if ( player.HasStatus( Constants.FreezeStatus ) )
@@ -2578,22 +2576,24 @@ internal static class StaffMenuHost
 #endif
 	}
 
-	/// <summary>Read the native local command instance; null means this session has no supported reader.</summary>
-	private static bool? GetLocalXrayState()
+#if !LIFEPUNCH_LOCAL
+	private static bool? GetXrayState( Player player )
 	{
-#if LIFEPUNCH_LOCAL
-		return null;
-#else
+		// Official DXRP's /xray and overlay read this player's replicated status.
+		const string statusId = "xray";
+		if ( player.HasStatus( statusId ) ) return true;
+		if ( Status.Current?.GetCachedInstance( statusId ) is not null ) return false;
+
+		// Older parents kept the toggle on the local command. Remote state is unknown there.
+		if ( player != Player.Local ) return null;
 		var chat = Chat.Current;
-		if ( !Player.Local.IsValid() || chat is null
+		if ( chat is null
 			|| !chat.TryGetCommand( "xray", out var command )
 			|| command is not Dxura.RP.Game.Commands.XrayCommand xray )
 		{
 			return null;
 		}
 
-		// Published parents may not expose a status reader yet. Keep unknown state
-		// unavailable in the menu rather than guessing from command execution.
 		var state = TypeLibrary.GetType<Dxura.RP.Game.Commands.XrayCommand>()?.GetProperty( "IsActive" );
 		if ( state is null || !state.CanRead || !state.IsGetMethodPublic
 			|| state.IsIndexer || state.PropertyType != typeof( bool ) )
@@ -2602,8 +2602,8 @@ internal static class StaffMenuHost
 		}
 
 		return state.GetValue( xray ) is bool active ? active : null;
-#endif
 	}
+#endif
 
 	/// <summary>Use the registered local command and the server's grants, never a rank-name threshold.</summary>
 	public static bool CanUseXray()

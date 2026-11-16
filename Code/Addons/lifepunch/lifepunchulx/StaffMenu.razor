@@ -494,7 +494,7 @@
 									<div class="accent-recent">
 										<div class="accent-state-label">Recent</div>
 										<div class="accent-recent-colors">
-											@foreach ( var color in _recentAccentColors )
+											@foreach ( var color in _recentAccents )
 											{
 												<button type="button" class="accent-recent-color" style="background-color: @color.Hex" tooltip="@( $"Select recently applied {color.Hex}" )" onclick="@(() => SelectRecentAccent( color ))"></button>
 											}
@@ -3651,8 +3651,8 @@
 		public Color Color { get; set; } = Color.White;
 	}
 
-	// Only applied ULX accents enter this session history; dragging does not flood it.
-	private static readonly List<Color> _recentAccentColors = new() { DefaultAccentColor };
+	// A render keeps its own array even if another menu updates the session history.
+	private static Color[] _recentAccents = { DefaultAccentColor };
 	private readonly AccentHolder _accentHolder = new();
 	private SerializedObject? _accentObject;
 	private SerializedProperty? _accentProperty;
@@ -3901,12 +3901,12 @@
 	private static void RememberAccent( Color color )
 	{
 		color = OpaqueAccent( color );
-		_recentAccentColors.RemoveAll( entry => string.Equals( entry.Hex, color.Hex, StringComparison.OrdinalIgnoreCase ) );
-		_recentAccentColors.Insert( 0, color );
-		if ( _recentAccentColors.Count > 10 )
-		{
-			_recentAccentColors.RemoveRange( 10, _recentAccentColors.Count - 10 );
-		}
+		var hex = color.Hex;
+		_recentAccents = _recentAccents
+			.Where( entry => !string.Equals( entry.Hex, hex, StringComparison.OrdinalIgnoreCase ) )
+			.Prepend( color )
+			.Take( 10 )
+			.ToArray();
 	}
 
 	private void SelectRecentAccent( Color color ) => AccentHexInput = color.Hex;
