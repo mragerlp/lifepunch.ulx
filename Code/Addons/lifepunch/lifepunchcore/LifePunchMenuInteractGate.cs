@@ -60,8 +60,9 @@ public static class LifePunchMenuInteractGate
 		return !WouldHandsPickupTakePriority( viewerPos.Value, target );
 	}
 
-	/// <summary>Hub reach measured to the model's world bounding box so it scales with model size
-	/// (2026-07-10 fix). Falls back to the pivot-based check only if the hub has no renderer.</summary>
+	/// <summary>
+	/// Measure hub reach to the model's world bounds. Fall back to the pivot when no renderer is available.
+	/// </summary>
 	private static bool IsHubTargetInOpenRange( Vector3 viewerPos, GameObject target )
 	{
 		var renderer = target.Components.Get<ModelRenderer>( FindMode.EverythingInSelfAndDescendants );

@@ -9,9 +9,8 @@ using Sandbox;
 namespace LifePunch.DXRP.Addons;
 
 /// <summary>
-/// Shared LifePunch menu UI scale steps (S / M / L / XL).
-/// Pair with flex-scroll layout on every scalable panel — scale only resizes the shell;
-/// tab content must scroll via min-height:0 + overflow-y:scroll (see LifePunchUiScale.scss).
+/// Shared menu size steps and CSS class mapping. Each panel stylesheet owns
+/// its dimensions and the layout of any bounded scroll regions.
 /// </summary>
 public enum LifePunchUiScaleSize
 {

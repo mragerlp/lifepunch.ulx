@@ -26,7 +26,15 @@ On September 19, 2026, the input helper passed 38 explicit cases and 508 Unicode
 
 The isolated addon build against the cached DXRP parent reported no new errors from these changes, but failed because `XrayCommand.IsActive` is absent from that parent. This is a failed package build, not release certification.
 
-The cached published parent also lacks the new rank snapshot accessor. Do not copy the parent RankSystem class into the addon. The package rank view remains explicitly unavailable until its parent integration is supplied. Existing package audit, pocket, money and website adapters have separate unavailable/fail-closed branches; this change does not certify them or nested host-RPC attribution.
+The September package build disabled the rank directory because the cached parent lacked the workbench snapshot accessor. The current package reader is described below. Existing package audit, pocket, money and website adapters have separate unavailable/fail-closed branches; this change does not certify them or nested host-RPC attribution.
+
+## Official-parent rank directory
+
+Open ULX, then **Player & Staff Management → Ranks**. An operator with the native `portal.rank.view` grant can see each rank defined for the current server, including ranks with zero holders online. ULX counts distinct online players who hold each rank, including secondary assignments. A viewer without the grant sees **View Ranks permission required**.
+
+The package reads the host's synchronized DXRP rank dictionary using s&box TypeLibrary. It verifies the property's type and host-sync flag and returns an unavailable state if the parent contract changes. The host checks the requesting connection, filters by the current server ID and returns only display fields to that connection. It uses the server's existing Portal link and requires no additional API key.
+
+Run `dotnet run --project tests/ulx-rank-directory/RankDirectory.Tests.csproj --configuration Release` for the authorization, scope, pagination and stale-response regression checks.
 
 ## Required live checks
 

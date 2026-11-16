@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+	CODEX-ULX gen-1 reviewer cases A1-A5, ported VERBATIM from REVIEWEV:
+	D:\Cavelux\ulx-chat-polish-20260919\validation\ulx-rev2-review-20260925-r2\tests\adversarial\Program.cs
+	(6180 B, SHA-256 89145F37227C72C35323B7B9CCFEC8FCE6039A3D803E8676B4D0A7FA2BF67AA7).
+	Program.cs beside this file is a byte copy; the cases are the reviewer's work, not the author's.
+	Settings follow REVIEWEV ReviewerAdversarial.csproj; only the linked policy path changed (r3 absolute -> this candidate, relative).
+	Proves local handling only: no engine, RPC, Portal, network or published-parent execution.
+	Lives outside Code/ so it is never part of the s&box package.
+	-->
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net10.0</TargetFramework>
+		<LangVersion>14</LangVersion>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>disable</ImplicitUsings>
+		<EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+		<DefineConstants>LIFEPUNCH_PACKAGE</DefineConstants>
+		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+		<AssemblyName>ReviewerAdversarial</AssemblyName>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Compile Include="Program.cs" />
+		<Compile Include="../../Code/Addons/lifepunch/lifepunchulx/PackageStoreEvidence.cs" Link="Linked/PackageStoreEvidence.cs" />
+	</ItemGroup>
+
+</Project>

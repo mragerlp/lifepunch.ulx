@@ -151,7 +151,7 @@ public static class LifePunchMenuInputBlock
 }
 
 /// <summary>
-/// Runs input suppression before equipment reads attack / use each frame.
+/// Reapply menu input suppression during update and fixed update.
 /// </summary>
 internal sealed class LifePunchMenuInputGuard : Component
 {

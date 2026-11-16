@@ -12,7 +12,7 @@ namespace LifePunch.DXRP.Addons;
 
 /// <summary>
 /// Stacked flex scroll metrics and generic scroll-region detection.
-/// Addon-neutral only — no lane-specific CSS class names (see DXRP_ADDON_PUBLISH_DOCTRINE § Shared UI).
+/// Keep shared layout code independent of addon-specific CSS classes.
 /// </summary>
 internal static class LifePunchScrollLayout
 {

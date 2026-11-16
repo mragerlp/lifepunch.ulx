@@ -27,7 +27,7 @@ namespace LifePunch.DXRP.Addons.StaffMenu;
 /// Uses on-demand RPC responses without replicated [Sync] state.
 /// </summary>
 [AddonService]
-public sealed class StaffMenuBridgeService : SingletonComponent<StaffMenuBridgeService>
+public sealed partial class StaffMenuBridgeService : SingletonComponent<StaffMenuBridgeService>
 {
 	private const string WaypointStorePrefix = "commands:waypoint:";
 	private const string WebsiteStoreKey = "lifepunchulx:settings:website";
@@ -71,10 +71,10 @@ public sealed class StaffMenuBridgeService : SingletonComponent<StaffMenuBridgeS
 	public void RequestAuditHost( Guid requestId )
 	{
 		var connection = Rpc.Caller;
-		if ( requestId == Guid.Empty || !IsCurrentAuditConnection( connection ) )
+		if ( requestId == Guid.Empty || !IsCurrentStaffConnection( connection ) )
 			return;
 
-		if ( !CanReadAudit( connection ) )
+		if ( !HasCurrentPermission( connection, AuditViewPermission ) )
 		{
 			SendAuditResult( connection, requestId, "refused", Array.Empty<StaffAuditWireRow>(),
 				"Audit permission is required." );
@@ -140,19 +140,19 @@ public sealed class StaffMenuBridgeService : SingletonComponent<StaffMenuBridgeS
 #endif
 	}
 
-	private static bool IsCurrentAuditConnection( Connection? connection )
+	private static bool IsCurrentStaffConnection( Connection? connection )
 		=> Networking.IsHost && connection is not null && (connection.IsActive || connection.IsHost)
 			&& Connection.All.Any( current => ReferenceEquals( current, connection ) );
 
-	private static bool CanReadAudit( Connection connection )
+	private static bool HasCurrentPermission( Connection connection, string permission )
 	{
-		if ( !IsCurrentAuditConnection( connection ) )
+		if ( !IsCurrentStaffConnection( connection ) )
 			return false;
 
 		var player = GameUtils.GetPlayerByConnectionId( connection.Id );
 		return player.IsValid() && player.Connection is not null
 			&& player.Connection.Id == connection.Id && player.SteamId == connection.SteamId
-			&& RankSystem.HasPermission( player.SteamId, AuditViewPermission );
+			&& RankSystem.HasPermission( player.SteamId, permission );
 	}
 
 	private static string LimitAuditField( string? value, int maximumCharacters, ref bool shortened )
@@ -186,11 +186,11 @@ public sealed class StaffMenuBridgeService : SingletonComponent<StaffMenuBridgeS
 	private void SendAuditResult( Connection connection, Guid requestId, string outcome,
 		StaffAuditWireRow[] rows, string coverage )
 	{
-		if ( !IsCurrentAuditConnection( connection ) )
+		if ( !IsCurrentStaffConnection( connection ) )
 			return;
 
 		// Revalidate immediately before sending; revocation never receives already-read rows.
-		if ( !CanReadAudit( connection ) )
+		if ( !HasCurrentPermission( connection, AuditViewPermission ) )
 		{
 			outcome = "refused";
 			rows = Array.Empty<StaffAuditWireRow>();
@@ -922,10 +922,13 @@ public sealed class StaffMenuBridgeService : SingletonComponent<StaffMenuBridgeS
 				if ( StoreReadsMayRun )
 				{
 #if LIFEPUNCH_PACKAGE
-					entries = await ServerApiClient.ListStore( WaypointStorePrefix );
-					// The published parent can return its process-local fallback here and exposes no
-					// provenance bit. Values remain useful as a preview, but never claim they are authoritative.
-					authoritative = false;
+					var read = await PackageStoreEvidence.ReadListAsync( WaypointStorePrefix, entry => entry.Key,
+						PackageStoreHasAuthorization, CapturePackageStoreScope,
+						() => ServerApiClient.ListStore( WaypointStorePrefix ), ResumeOnHostAsync );
+					// Only a non-empty, well-formed remote list is evidence. The published parent returns the same
+					// empty list for none saved, a failed request and a rejected token, so those stay unconfirmed.
+					entries = read.Value ?? Array.Empty<StoreEntryDto>();
+					authoritative = read.State == PackageStoreReadState.Confirmed;
 #else
 					var read = await ServerApiClient.ReadStoreList( WaypointStorePrefix );
 					entries = read.Entries;
@@ -1001,10 +1004,12 @@ public sealed class StaffMenuBridgeService : SingletonComponent<StaffMenuBridgeS
 				if ( StoreReadsMayRun )
 				{
 #if LIFEPUNCH_PACKAGE
-					website = await ServerApiClient.GetStore( WebsiteStoreKey ) ?? string.Empty;
-					// The published parent does not expose whether this came from its authenticated
-					// store or its process-local fallback, so package reads are always explicitly uncertain.
-					authoritative = false;
+					var read = await PackageStoreEvidence.ReadValueAsync( PackageStoreHasAuthorization,
+						CapturePackageStoreScope, () => ServerApiClient.GetStore( WebsiteStoreKey ), ResumeOnHostAsync );
+					// A non-null remote value is evidence. Null covers not-found, failure and a rejected token
+					// alike in the published parent, so it stays unconfirmed rather than "no website".
+					website = read.Value ?? string.Empty;
+					authoritative = read.State == PackageStoreReadState.Confirmed;
 #else
 					var read = await ServerApiClient.ReadStoreValue( WebsiteStoreKey );
 					website = read.Found ? read.Value ?? string.Empty : string.Empty;
@@ -1049,14 +1054,67 @@ public sealed class StaffMenuBridgeService : SingletonComponent<StaffMenuBridgeS
 		url = ( url ?? string.Empty ).Trim();
 
 #if LIFEPUNCH_PACKAGE
-		// The currently published parent exposes neither authorization state nor a durable write result.
-		// A package-only set/read round trip can hit the parent's process-local fallback, so it is not
-		// evidence that the portal persisted anything. Fail closed until that parent contract exists.
-		await Task.CompletedTask;
-		Log.Warning( "[lifepunchulx] website changes require a parent with authenticated, confirmed store writes." );
-		SendWebsiteWriteResult( caller, requestId, false,
-			"Not saved: this server build cannot prove an authenticated durable settings write." );
-		return;
+		// TrySetStore answers true from its remote branch (HTTP 2xx for the PUT) and from its no-key mock alike, so a save
+		// is acknowledged only for a remote-shaped true followed by a remote-shaped read-back of the same value.
+		// DeleteStore returns no result, so clearing can never be acknowledged and stays refused.
+		if ( url.Length == 0 )
+		{
+			SendWebsiteWriteResult( caller, requestId, false,
+				"Not saved: this server build cannot confirm clearing the website. Enter a replacement URL, or clear it in the Portal." );
+			return;
+		}
+
+		var outcome = PackageStoreWriteState.NotConfirmed;
+		await _websiteWriteGate.WaitAsync();
+		try
+		{
+			// Grants can change while this request waits behind another write. Revalidate on the host main
+			// thread; PackageStoreEvidence then guards authorization and scope adjacent to each parent call.
+			await GameTask.MainThread();
+			if ( StaffMenuHost.IsSyntheticPlayer( caller.SteamId )
+			     || !RankSystem.HasPermission( caller.SteamId, SettingsEditPermission ) )
+			{
+				SendWebsiteWriteResult( caller, requestId, false, "Not saved: settings permission changed before the write." );
+				return;
+			}
+
+			outcome = await PackageStoreEvidence.WriteValueAsync( url, PackageStoreHasAuthorization, CapturePackageStoreScope,
+				() => ServerApiClient.TrySetStore( WebsiteStoreKey, url, null ),
+				() => ServerApiClient.GetStore( WebsiteStoreKey ), ResumeOnHostAsync );
+		}
+		catch ( Exception e )
+		{
+			Log.Warning( $"[lifepunchulx] website save stopped before an acknowledgement ({e.GetType().Name})." );
+		}
+		finally
+		{
+			_websiteWriteGate.Release();
+		}
+
+		await GameTask.MainThread();
+		switch ( outcome )
+		{
+			case PackageStoreWriteState.Acknowledged:
+				ReceiveSettingsClient( Guid.Empty, url, true );
+				SendWebsiteWriteResult( caller, requestId, true,
+					"Saved: the store API acknowledged the write. Check the Portal to confirm it persisted." );
+				return;
+			case PackageStoreWriteState.NotConfigured:
+				Log.Warning( "[lifepunchulx] website save not attempted: no store API authorization or linked server on this host." );
+				SendWebsiteWriteResult( caller, requestId, false,
+					"Not saved: this server has no store API authorization or linked server." );
+				return;
+			case PackageStoreWriteState.ScopeChanged:
+				Log.Warning( "[lifepunchulx] website save outcome not attributed: store authorization or link changed during the write." );
+				SendWebsiteWriteResult( caller, requestId, false,
+					"Not confirmed: the server's store link changed during the save. Check the Portal before trying again." );
+				return;
+			default:
+				Log.Warning( "[lifepunchulx] website save was not confirmed by the store API (no remote acknowledgement and matching read-back)." );
+				SendWebsiteWriteResult( caller, requestId, false,
+					"Not confirmed: the store API did not confirm the write. It may still have been saved; check the Portal before trying again." );
+				return;
+		}
 #else
 		if ( !ServerApiLink.HasAuthorizationKey )
 		{
@@ -1124,13 +1182,35 @@ public sealed class StaffMenuBridgeService : SingletonComponent<StaffMenuBridgeS
 		}
 	}
 
+#if LIFEPUNCH_PACKAGE
+	private static bool PackageStoreHasAuthorization() => GameManager.HasAuthorizationKey;
+
+	/// <summary>
+	/// Linked scope a package store reply is attributed to: manager instance, tenant, server, endpoint and API base.
+	/// Null when this host is not linked. Reads token presence only; never reads or copies the token.
+	/// </summary>
+	private static string? CapturePackageStoreScope()
+	{
+		var manager = GameManager.Instance;
+		if ( !manager.IsValid() || string.IsNullOrWhiteSpace( manager.TenantId ) || manager.ServerId == Guid.Empty )
+		{
+			return null;
+		}
+
+		return string.Join( "|", manager.Id.ToString( "N" ), manager.TenantId, manager.ServerId.ToString( "N" ),
+			GameManager.Endpoint.ToString(), GameManager.Api ?? string.Empty );
+	}
+
+	private static async Task ResumeOnHostAsync() => await GameTask.MainThread();
+
+#endif
 	private static bool StoreReadsMayRun
 	{
 		get
 		{
 #if LIFEPUNCH_PACKAGE
-			// The parent owns token injection but does not expose its state. Reads are allowed;
-			// empty package results remain non-authoritative at their call sites.
+			// PackageStoreEvidence checks authorization and linked scope at each call site, adjacent to
+			// the parent call and again after it, because the parent's branch choice is only observable there.
 			return true;
 #else
 			return ServerApiLink.HasAuthorizationKey;

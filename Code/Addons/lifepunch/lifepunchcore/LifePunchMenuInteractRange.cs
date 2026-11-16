@@ -28,10 +28,10 @@ public static class LifePunchMenuInteractRange
 	/// <summary>~0.75 m vertical slack while opening.</summary>
 	public const float OpenVerticalMeters = 0.75f;
 
-	/// <summary>~4.25 m — HOLDABLE-HUB LAW clause 2: menu-USE must reach FURTHER than
-	/// DXRP hands-grab (Config ReachDistance 150u ≈ 3.81 m) so a step back opens the
-	/// menu while close range belongs to physical handling. Rotation is additionally
-	/// guarded at CanPress (grabbed hub never presses).</summary>
+	/// <summary>
+	/// Hub menu reach extends beyond the 150-unit default Hands grab reach, allowing
+	/// a player to step back and open the menu. The interaction gate rejects grabbed hubs.
+	/// </summary>
 	public const float HubOpenHorizontalMeters = 4.25f;
 
 	/// <summary>~1.5 m vertical slack for hub USE.</summary>
@@ -56,14 +56,11 @@ public static class LifePunchMenuInteractRange
 	public static bool IsHubInOpenRange( Vector3 viewerPos, Vector3 targetPos )
 		=> IsWithin( viewerPos, targetPos, HubOpenHorizontalUnits, HubOpenVerticalUnits, out _ );
 
-	/// <summary>Bounds-derived hub reach (2026-07-10): measure to the model's world bounding BOX,
-	/// not the pivot. A ground-aligned hub puts its pivot at z≈0, so the old fixed 1.5 m vertical
-	/// slack measured from the pivot failed for a standing player (~1.63 m eye) — Hands+E opened
-	/// nothing while the Build tool (which bypasses this gate) worked. Measuring to the box makes
-	/// the effective reach scale with model size: the vertical span the player can stand within is
-	/// the model's own height, plus a small edge slack — never a pivot-relative constant. The
-	/// horizontal slack beyond the footprint still exceeds DXRP hands-grab reach so a step back
-	/// opens the menu for ANY model.</summary>
+	/// <summary>
+	/// Measure hub reach from the model's world bounds instead of its pivot.
+	/// This allows standing players to reach ground-aligned models of different heights
+	/// while preserving the configured horizontal and vertical edge slack.
+	/// </summary>
 	public static bool IsHubInOpenRange( Vector3 viewerPos, BBox worldBounds )
 	{
 		var closest = worldBounds.ClosestPoint( viewerPos );
@@ -92,14 +89,14 @@ public static class LifePunchMenuInteractRange
 		return horizontalDistance <= horizontalUnits && vertical <= verticalUnits;
 	}
 
-	/// <summary>Dev proof (cases e/f) — runs the hub reach math on SYNTHETIC bounds so the fix is
-	/// provable without a live hub-with-model. Reproduces the failing geometry (ground-aligned hub,
-	/// pivot at z=0) and shows the pivot check FAILS a standing-eye viewer while the bounds check
-	/// PASSES, scales across model sizes, and keeps horizontal reach above DXRP grab-reach (~150u).
-	/// Emits LP_HUBREACH_PROBE lines. Call via the bridge (invoke_static).</summary>
+	/// <summary>
+	/// Log synthetic hub-reach comparisons for several model sizes.
+	/// The probe compares pivot and bounds checks at standing-eye height and reports
+	/// horizontal reach against a fixed 150-unit grab reference; it does not test a live hub.
+	/// </summary>
 	public static string HubReachProbe()
 	{
-		const float grabReachUnits = 150f; // Config.Current.Game.ReachDistance ≈ 3.81 m (comment ref)
+		const float grabReachUnits = 150f; // Default grab-reach reference, approximately 3.81 m.
 		const float eyeZ = 64f;            // standing DXRP player eye ≈ 1.63 m
 
 		string Run( string label, float modelHeight, float modelRadius )
@@ -113,8 +110,8 @@ public static class LifePunchMenuInteractRange
 			// Viewer at physical-handling range: 1 unit in front, standing eye height.
 			var viewer = new Vector3( modelRadius + 1f, 0f, eyeZ );
 
-			var oldPivotPass = IsHubInOpenRange( viewer, pivot );      // the bug: fixed 1.5 m from pivot
-			var newBoundsPass = IsHubInOpenRange( viewer, bounds );    // the fix: measured to the box
+			var oldPivotPass = IsHubInOpenRange( viewer, pivot );      // Pivot-based comparison.
+			var newBoundsPass = IsHubInOpenRange( viewer, bounds );    // Bounds-based comparison.
 
 			// Effective horizontal reach from pivot = footprint radius + horizontal slack.
 			var effectiveHorizontalReach = modelRadius + HubOpenHorizontalUnits;

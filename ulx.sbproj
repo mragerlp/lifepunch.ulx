@@ -1,8 +1,8 @@
 {
-  "Title": "LIFEPUNCH ULX",
+  "Title": "ULX",
   "Type": "addon",
   "Org": "lifepunch",
-  "Ident": "lifepunchulx",
+  "Ident": "ulx",
   "Schema": 1,
   "IncludeSourceFiles": false,
   "Resources": null,

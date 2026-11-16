@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+	Offline test-double suite for Code/Addons/lifepunch/lifepunchulx/PackageStoreEvidence.cs (source-linked, package define).
+	Proves local evidence handling only: no engine, RPC, Portal, network or published-parent execution.
+	Lives outside Code/ so it is never part of the s&box package.
+	-->
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net10.0</TargetFramework>
+		<LangVersion>14</LangVersion>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>disable</ImplicitUsings>
+		<EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+		<DefineConstants>$(DefineConstants);LIFEPUNCH_PACKAGE</DefineConstants>
+		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Compile Include="Program.cs" />
+		<Compile Include="../../Code/Addons/lifepunch/lifepunchulx/PackageStoreEvidence.cs" Link="Linked/PackageStoreEvidence.cs" />
+	</ItemGroup>
+
+</Project>

@@ -615,7 +615,15 @@
 			<div class="observe-block">
 				<div class="observe-section-head">Server ranks</div>
 				<div class="observe-hint">@LpParityHost.RanksScopeNote</div>
-				@if ( !LpParityHost.RanksAreAvailable )
+				@if ( !LpParityHost.CanViewRanks() )
+				{
+					<div class="observe-empty">View Ranks permission required (@LpParityHost.RankViewPermissionId).</div>
+				}
+				else if ( LpParityHost.RanksAreLoading )
+				{
+					<div class="observe-empty">Loading server ranks…</div>
+				}
+				else if ( !LpParityHost.RanksAreAvailable )
 				{
 					<div class="observe-reserved">
 						<i class="material-icons">plumbing</i>
@@ -623,20 +631,7 @@
 						<span class="observe-reserved-hint">@LpParityHost.RanksUnavailableReason</span>
 					</div>
 				}
-				else if ( !LpParityHost.RanksAreComplete )
-				{
-					<div class="observe-caveat">Incomplete scope -- this is not the full tenant rank roster.</div>
-				}
-				@if ( LpParityHost.RanksAreAvailable && !LpParityHost.CanViewRanks() )
-				{
-					@* PERMISSION-driven, and worded so it cannot be mistaken for the BUILD-driven block above.
-					   That one says this package cannot supply ranks AT ALL; this one names the scope to request.
-					   The two are reached by different conditions (RanksAreAvailable vs CanViewRanks) and must
-					   stay worded apart, so "your rank cannot action this" never reads as "this build cannot
-					   supply this". *@
-					<div class="observe-empty">Requires permission: @LpParityHost.RankViewPermissionId</div>
-				}
-				else if ( LpParityHost.RanksAreAvailable )
+				else
 				{
 					var ranks = LpParityHost.ObservedRanks();
 					@if ( ranks.Count == 0 )
@@ -978,9 +973,10 @@
 		}
 		else if ( ActiveView == ObserveView.Ranks )
 		{
+			LpParityHost.RefreshRanks();
 			var canViewRanks = LpParityHost.CanViewRanks();
 			hash = HashCode.Combine( hash, LpParityHost.RanksAreAvailable, canViewRanks,
-				LpParityHost.RanksAreComplete, LpParityHost.RanksScopeNote );
+				LpParityHost.RanksAreLoading, LpParityHost.RanksScopeNote );
 
 			if ( LpParityHost.RanksAreAvailable && canViewRanks )
 			{
@@ -1231,6 +1227,7 @@
 	private void SetView( ObserveView view )
 	{
 		_view = view;
+		if ( ActiveView == ObserveView.Ranks ) LpParityHost.RefreshRanks( entered: true );
 		RecomputeDataHash();
 		StateHasChanged();
 	}

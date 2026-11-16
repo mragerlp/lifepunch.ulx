@@ -20,9 +20,7 @@ using Dxura.RP.Game;
 namespace LifePunch.DXRP.Addons;
 
 /// <summary>
-/// One committed purchase. Append-only — the record is never updated or deleted;
-/// integer money only (long satoshis). Float or an update path here = doctrine violation
-/// (UPGRADE_ARC_DESIGN decision 7; slice 1 GO ruling).
+/// Purchase values stored by the append-only ledger. Costs use integer satoshis.
 /// </summary>
 public sealed class LifePunchPurchaseRecord
 {
@@ -34,8 +32,10 @@ public sealed class LifePunchPurchaseRecord
 	/// <summary>Slot token for Slot-kind tracks (e.g. "gpurack-1"); empty for Global.</summary>
 	public string SubjectId { get; set; }
 
-	/// <summary>Subject class guard — apply honors tier ONLY on class match (GO ruling R1,
-	/// closes the standard→advanced occupant swap). Empty = classless track.</summary>
+	/// <summary>
+	/// Subject class used by MaxTier alongside owner, track and slot.
+	/// A reused slot cannot inherit another class's tier; empty means a classless track.
+	/// </summary>
 	public string SubjectClass { get; set; }
 
 	public int Tier { get; set; }
@@ -45,26 +45,22 @@ public sealed class LifePunchPurchaseRecord
 }
 
 /// <summary>
-/// The purchase ledger — landlord-grade, trackId-scoped, SteamID-keyed, host-only,
-/// append-only. THE source of truth for upgrade ownership; component tier state is a
-/// rehydrated projection that reconciles against this ledger (ledger wins,
-/// UPGRADE_ARC_DESIGN decision 9). Storage is host FileSystem.Data, flushed at every
-/// commit — deliberately independent of the snapshot cadence (crash-dupe firewall).
-/// Contains ZERO track-specific logic: rack_compute is tenant #1, not owner.
+/// Host-only purchase ledger keyed by owner, track and subject. Component tier state
+/// is reconstructed from these records. Each commit writes the ledger to FileSystem.Data
+/// before posting its purchase event, independently of the snapshot cadence.
 /// </summary>
 public static class LifePunchUpgradeLedger
 {
-	// One JSON array document, rewritten+flushed whole at every commit. NOT line-per-record
-	// JSONL: s&box Json.Serialize has no compact mode (gate-1 finding, 2026-07-08 — pretty-
-	// printed records made the old .jsonl unparseable on the first true disk reload).
+	// Store one complete JSON array. The serializer emits multiline records,
+	// which cannot be parsed as one-record-per-line JSONL.
 	private const string LedgerFile = "lifepunch-upgrade-ledger.json";
 
 	private static List<LifePunchPurchaseRecord> _records;
 
-	/// <summary>Scene identity the cache was loaded under. FileSystem.Data resolves
-	/// differently per context (editor menu vs game session) — a load latched in one
-	/// context must never serve another (gate-1 finding, 2026-07-08: a pre-play read
-	/// cached an empty ledger into the play session). Guid, never a Scene ref.</summary>
+	/// <summary>
+	/// Scene ID associated with the cache. FileSystem.Data can resolve differently between
+	/// editor and game contexts, so a cache loaded in one scene must not serve another.
+	/// </summary>
 	private static Guid _loadedSceneId;
 
 	/// <summary>Highest committed tier for (owner, track, subject, class); 0 = none.</summary>
@@ -95,13 +91,9 @@ public static class LifePunchUpgradeLedger
 	}
 
 	/// <summary>
-	/// Validate → append+flush → raise OnPurchase (commit-then-raise; the event announces
-	/// a fact). Idempotency = the sequential-tier precondition: only currentMax+1 commits;
-	/// re-fired requests and tier-skips both reject. Charging is NOT done here — and
-	/// neither is PRICING: <paramref name="costSats"/> is the cost the caller actually
-	/// charged (quote-time yield multipliers included). The ledger records and announces
-	/// what was PAID (gate-2 finding 2026-07-09: internal base-ladder pricing under-
-	/// recorded Advanced purchases by half).
+	/// Require the next sequential tier, append the record, write the ledger, then post OnPurchase.
+	/// The caller owns pricing and charging. costSats records the amount actually charged,
+	/// including any quote-time multipliers; the ledger does not calculate a base price here.
 	/// </summary>
 	public static bool TryCommitPurchase(
 		long ownerSteamId,
@@ -173,7 +165,7 @@ public static class LifePunchUpgradeLedger
 			Seq = _records.Count,
 		};
 
-		// Transactional order: persist first; only a flushed record is a fact.
+		// Write the record before posting the purchase event; remove it if the write fails.
 		_records.Add( record );
 		if ( !TrySaveAll() )
 		{
@@ -187,9 +179,7 @@ public static class LifePunchUpgradeLedger
 	}
 
 	/// <summary>
-	/// Ledger-wins reconcile for a rehydrated tier projection. Returns the ledger tier;
-	/// logs a discrepancy line when the persisted projection disagrees (deliberate
-	/// corruption, stale snapshot, or class mismatch all clamp here).
+	/// Return the ledger tier and log a discrepancy when the persisted component projection differs.
 	/// </summary>
 	public static int ReconcileTier( int persistedTier, int ledgerTier, string contextLabel )
 	{
@@ -202,7 +192,9 @@ public static class LifePunchUpgradeLedger
 		return ledgerTier;
 	}
 
-	/// <summary>Debug/proof view — copy, not the live list.</summary>
+	/// <summary>
+	/// Return a shallow copy of the record list; the record objects are shared.
+	/// </summary>
 	public static IReadOnlyList<LifePunchPurchaseRecord> GetRecords()
 	{
 		if ( !Networking.IsHost )
