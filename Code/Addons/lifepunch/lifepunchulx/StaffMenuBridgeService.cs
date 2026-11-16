@@ -27,7 +27,7 @@ namespace LifePunch.DXRP.Addons.StaffMenu;
 /// Uses on-demand RPC responses without replicated [Sync] state.
 /// </summary>
 [AddonService]
-public sealed class StaffMenuBridgeService : SingletonComponent<StaffMenuBridgeService>
+public sealed partial class StaffMenuBridgeService : SingletonComponent<StaffMenuBridgeService>
 {
 	private const string WaypointStorePrefix = "commands:waypoint:";
 	private const string WebsiteStoreKey = "lifepunchulx:settings:website";
@@ -71,10 +71,10 @@ public sealed class StaffMenuBridgeService : SingletonComponent<StaffMenuBridgeS
 	public void RequestAuditHost( Guid requestId )
 	{
 		var connection = Rpc.Caller;
-		if ( requestId == Guid.Empty || !IsCurrentAuditConnection( connection ) )
+		if ( requestId == Guid.Empty || !IsCurrentStaffConnection( connection ) )
 			return;
 
-		if ( !CanReadAudit( connection ) )
+		if ( !HasCurrentPermission( connection, AuditViewPermission ) )
 		{
 			SendAuditResult( connection, requestId, "refused", Array.Empty<StaffAuditWireRow>(),
 				"Audit permission is required." );
@@ -140,19 +140,19 @@ public sealed class StaffMenuBridgeService : SingletonComponent<StaffMenuBridgeS
 #endif
 	}
 
-	private static bool IsCurrentAuditConnection( Connection? connection )
+	private static bool IsCurrentStaffConnection( Connection? connection )
 		=> Networking.IsHost && connection is not null && (connection.IsActive || connection.IsHost)
 			&& Connection.All.Any( current => ReferenceEquals( current, connection ) );
 
-	private static bool CanReadAudit( Connection connection )
+	private static bool HasCurrentPermission( Connection connection, string permission )
 	{
-		if ( !IsCurrentAuditConnection( connection ) )
+		if ( !IsCurrentStaffConnection( connection ) )
 			return false;
 
 		var player = GameUtils.GetPlayerByConnectionId( connection.Id );
 		return player.IsValid() && player.Connection is not null
 			&& player.Connection.Id == connection.Id && player.SteamId == connection.SteamId
-			&& RankSystem.HasPermission( player.SteamId, AuditViewPermission );
+			&& RankSystem.HasPermission( player.SteamId, permission );
 	}
 
 	private static string LimitAuditField( string? value, int maximumCharacters, ref bool shortened )
@@ -186,11 +186,11 @@ public sealed class StaffMenuBridgeService : SingletonComponent<StaffMenuBridgeS
 	private void SendAuditResult( Connection connection, Guid requestId, string outcome,
 		StaffAuditWireRow[] rows, string coverage )
 	{
-		if ( !IsCurrentAuditConnection( connection ) )
+		if ( !IsCurrentStaffConnection( connection ) )
 			return;
 
 		// Revalidate immediately before sending; revocation never receives already-read rows.
-		if ( !CanReadAudit( connection ) )
+		if ( !HasCurrentPermission( connection, AuditViewPermission ) )
 		{
 			outcome = "refused";
 			rows = Array.Empty<StaffAuditWireRow>();

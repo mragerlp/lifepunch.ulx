@@ -2171,7 +2171,7 @@ internal static class StaffMenuHost
 	/// Remove control, format, private-use and surrogate characters from backend rank names,
 	/// then trim. Preserve ordinary letters, digits, spaces and punctuation for display and group matching.
 	/// </summary>
-	private static string SanitizeRankName( string raw )
+	internal static string SanitizeRankName( string raw )
 	{
 		if ( string.IsNullOrEmpty( raw ) )
 		{

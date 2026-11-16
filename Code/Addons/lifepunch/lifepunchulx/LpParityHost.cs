@@ -33,22 +33,28 @@ internal static class LpParityHost
 {
 	public const string RankViewPermissionId = "portal.rank.view";
 
-	/// <summary>
-	/// The current published parent has rank DTOs but no public rank-definition snapshot accessor.
-	/// Fail closed instead of substituting fixtures or claiming that an empty list is a tenant roster.
-	/// </summary>
-	public static bool RanksAreAvailable => false;
-	public static bool CanViewRanks() => StaffMenuHost.CanView( RankViewPermissionId );
-	public static bool RanksAreComplete => false;
+	private static StaffMenuBridgeService? Bridge
+		=> StaffMenuBridgeService.Instance.IsValid() ? StaffMenuBridgeService.Instance : null;
+
+	public static void RefreshRanks( bool entered = false ) => Bridge?.RefreshRankDirectory( entered );
+	public static bool RanksAreLoading => Bridge?.RankReadState == RankDirectoryState.Loading;
+	public static bool RanksAreAvailable => Bridge?.RankReadState == RankDirectoryState.Ready;
+	public static bool CanViewRanks() => StaffMenuHost.CanView( RankViewPermissionId )
+		&& Bridge?.RankReadState != RankDirectoryState.Denied;
+	public static bool RanksAreComplete => RanksAreAvailable;
 	public const string RanksScopeNote =
 		"Ranks supplied by this server's Portal connection, including ranks with nobody assigned online.";
-	public const string RanksUnavailableReason =
-		"The current parent package does not expose the rank directory. Use the Portal until the parent is updated.";
-	public static IReadOnlyList<LpParityRank> ObservedRanks() => System.Array.Empty<LpParityRank>();
+	public const string RanksUnavailableReason = "The host could not read this server's rank definitions.";
+	public static IReadOnlyList<LpParityRank> ObservedRanks() => RanksAreAvailable && CanViewRanks()
+		? Bridge!.RankRows : System.Array.Empty<LpParityRank>();
 }
 #else
 internal static class LpParityHost
 {
+	// The workbench and local fixture projections below are synchronous.
+	public static void RefreshRanks( bool entered = false ) { }
+	public static bool RanksAreLoading => false;
+
 	/// <summary>Positive code-string ID for this slice. Exists nowhere else in the tree.</summary>
 	public const string ParityMark = "LP_ULX_PARITY_READ_20260828";
 
