@@ -1,0 +1,31 @@
+name: Check ULX compatibility
+on:
+  push:
+    branches: [develop, publish, fix/dxrp-ulx-compatibility]
+  pull_request:
+    branches: [develop, publish]
+permissions:
+  contents: read
+jobs:
+  source-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        with:
+          dotnet-version: "10.0.x"
+      - name: Rank transport, authorization and server scope
+        run: dotnet run --project tests/ulx-rank-directory/RankDirectory.Tests.csproj --configuration Release
+      - name: Chat input and received message selection
+        run: dotnet run --project tests/ulx-staff-chat/StaffChatInput.Tests.csproj --configuration Release
+      - name: Package-store result handling
+        run: dotnet run --project tests/PackageStoreEvidenceTests/PackageStoreEvidenceTests.csproj --configuration Release
+      - name: Package-store adversarial cases
+        run: dotnet run --project tests/ReviewerAdversarialTests/ReviewerAdversarialTests.csproj --configuration Release
+      - name: Native command duration bounds
+        run: dotnet run --project tests/ulx-duration/Duration.Tests.csproj --configuration Release
+      - name: Staff activity selection
+        shell: pwsh
+        run: ./tests/ulx-staff-activity/Run.ps1
