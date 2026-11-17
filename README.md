@@ -22,6 +22,14 @@ ULX uses the receiving server's authenticated DXRP configuration. A server token
 - Editing the network website requires `lifepunchulx.settings.edit`. Configure your network's own link in the header gear. The package starts with an empty link.
 - Native command permissions and targeting still apply to actions requested from the menu.
 
+## Give Money in this source
+
+The `LIFEPUNCH_PACKAGE` build supports **Cash only** through the official parent's `Player.PayHost` method. The host checks the current caller and target connections, `economy.manage`, rank targeting, an authorized server link, enabled money, a positive bounded amount, and a nonblank reason before calling the native payment method once. Bank grants remain disabled because this parent does not provide a reliable bank payment outcome.
+
+A successful receipt means **cash was applied locally; audit delivery is unconfirmed**. A false result, exception, or lost server link leaves the request UNKNOWN and blocks further grants from that caller. Recheck reads the receipt without repeating the payment. The newest 128 result receipts are cached; unresolved caller locks remain for the current host lifetime. Old successful request IDs are not durable idempotency keys; reconcile an uncertain grant with the server operator before retrying after a restart or host migration. The non-package build retains its strict audited adapter.
+
+These are source capabilities, not proof that an existing published revision contains them. The [money-grant suite](tests/ulx-money-grants/README.md) uses isolated native-boundary fixtures and changes no player funds. Live behavior and audit delivery require separate QA evidence.
+
 ## Verify a revision
 
 On a staging server, use two clients to check the expected allow and deny results for Ranks, the selected player's X-ray flag, the Appearance color square, hue strip and hex field, and Observe. Reopen the menu and reconnect a regular client to catch missing assets or stale package pins.

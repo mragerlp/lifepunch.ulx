@@ -7,5 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../Code/Addons/lifepunch/lifepunchulx/StaffMenuActions.cs" Link="StaffMenuActions.cs" />
+    <Compile Include="../../Code/Addons/lifepunch/lifepunchulx/StaffMoneyGrantCapabilities.cs" Link="StaffMoneyGrantCapabilities.cs" />
   </ItemGroup>
 </Project>

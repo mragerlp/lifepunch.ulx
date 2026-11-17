@@ -948,7 +948,7 @@
 												</div>
 												<div class="field">
 													<span class="k">Bank</span>
-													@if ( profileMoneyAction is not null )
+													@if ( profileMoneyAction is not null && StaffMoneyGrantCapabilities.BankAvailable )
 													{
 														<button type="button" class="v profile-stat-value @( detail.Bank > 0 ? "v-cash" : "v-tone-zero" )"
 														        tooltip="Open Give Money for this player; choose an amount and confirm"
@@ -1333,9 +1333,14 @@
 									<div class="chips">
 										<button class="chip @( _destination == "cash" ? "chip-active" : "" )"
 										        onclick="@(() => SetDestination( "cash" ))">Cash</button>
-										<button class="chip @( _destination == "bank" ? "chip-active" : "" )"
+										<button class="chip @( _destination == "bank" ? "chip-active" : "" ) @( StaffMoneyGrantCapabilities.BankAvailable ? "" : "control-disabled" )"
+										        disabled="@(!StaffMoneyGrantCapabilities.BankAvailable)"
 										        onclick="@(() => SetDestination( "bank" ))">Bank</button>
 									</div>
+									@if ( !StaffMoneyGrantCapabilities.BankAvailable )
+									{
+										<span class="grant-confirm-sub">@StaffMoneyGrantCapabilities.BankUnavailableMessage</span>
+									}
 								}
 								else if ( arg.Kind == StaffArgKind.Number )
 								{
@@ -1439,7 +1444,7 @@
 								{
 									<div class="grant-confirm">
 										<span class="grant-confirm-line"><span class="grant-word-lead">Are you sure? Give</span><span class="grant-amount">$@_amount</span><span class="grant-word-mid">to</span><span class="grant-target">@targetContext</span><span class="grant-word-lead">, into their</span><span class="grant-amount">@_destination</span>?</span>
-										<span class="grant-confirm-sub">This is recorded in the host audit ring; portal delivery is asynchronous. It cannot be reversed from this console.</span>
+										<span class="grant-confirm-sub">@StaffMoneyGrantCapabilities.ConfirmationNotice</span>
 									</div>
 								}
 								else if ( moneyState == StaffMoneyGrantState.Rejected && !requiredArgsComplete )
@@ -1943,6 +1948,8 @@
 
 	private void SetDestination( string destination )
 	{
+		if ( !StaffMoneyGrantCapabilities.IsDestinationAvailable( destination ) )
+			return;
 		_destination = destination;
 		InvalidateArmedConfirm();
 		StateHasChanged();
@@ -2870,7 +2877,7 @@
 		{
 			StaffArgKind.Duration => IsDurationSatisfied( action, value ),
 			StaffArgKind.Number => IsNumberSatisfied( action, value ),
-			StaffArgKind.Destination => value is "cash" or "bank",
+			StaffArgKind.Destination => StaffMoneyGrantCapabilities.IsDestinationAvailable( value ),
 			_ => true
 		};
 	}

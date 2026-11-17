@@ -18,6 +18,8 @@ jobs:
           dotnet-version: "10.0.x"
       - name: Rank transport, authorization and server scope
         run: dotnet run --project tests/ulx-rank-directory/RankDirectory.Tests.csproj --configuration Release
+      - name: Native cash grants, replay and unknown outcomes
+        run: dotnet run --project tests/ulx-money-grants/MoneyGrant.Tests.csproj --configuration Release
       - name: Chat input and received message selection
         run: dotnet run --project tests/ulx-staff-chat/StaffChatInput.Tests.csproj --configuration Release
       - name: Package-store result handling
