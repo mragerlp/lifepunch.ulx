@@ -38,9 +38,13 @@
 				<button class="lp-ui-chrome-btn cog chrome-cog @( (_activeTab == TabSettings) ? "chrome-active" : "" )" style="@HeaderCogAccentStyle()" tooltip="Settings" onclick="@OpenSettings">
 					<i class="material-icons">settings</i>
 				</button>
-				<button class="lp-ui-chrome-btn close chrome-close @( MoneyGrantNavigationLocked() ? "control-disabled" : "" )"
-				        tooltip="@MoneyGrantCloseTooltip()"
-				        onclick="@CloseMenu">
+				@if ( StaffMenuHost.SubmittedMoneyGrant is not null && _pendingAction?.Dispatch != StaffDispatchKind.GiveMoney )
+				{
+					<button class="header-chip header-chip-link" tooltip="View your last money grant" onclick="@OpenMoneyGrantReceipt">
+						<i class="material-icons">receipt</i><span>Grant receipt</span>
+					</button>
+				}
+				<button class="lp-ui-chrome-btn close chrome-close" tooltip="Close menu" onclick="@CloseMenu">
 					<i class="material-icons">close</i>
 				</button>
 			</div>
@@ -948,7 +952,7 @@
 												</div>
 												<div class="field">
 													<span class="k">Bank</span>
-													@if ( profileMoneyAction is not null )
+													@if ( profileMoneyAction is not null && StaffMoneyGrantCapabilities.BankAvailable )
 													{
 														<button type="button" class="v profile-stat-value @( detail.Bank > 0 ? "v-cash" : "v-tone-zero" )"
 														        tooltip="Open Give Money for this player; choose an amount and confirm"
@@ -1251,16 +1255,11 @@
 					var requiredArgsComplete = pending.Args
 						.All( arg => IsArgSatisfied( pending, arg ) );
 					var moneyState = StaffMenuHost.MoneyGrantState;
-					var moneyLocked = pending.Dispatch == StaffDispatchKind.GiveMoney
-						&& moneyState is StaffMoneyGrantState.Pending or StaffMoneyGrantState.Succeeded or StaffMoneyGrantState.Unknown;
-					var moneyNavigationLocked = pending.Dispatch == StaffDispatchKind.GiveMoney
-						&& moneyState is StaffMoneyGrantState.Pending or StaffMoneyGrantState.Unknown;
+					var submission = pending.Dispatch == StaffDispatchKind.GiveMoney ? StaffMenuHost.SubmittedMoneyGrant : null;
+					var moneyLocked = submission is not null;
 					var actionEligible = IsEnabled( pending, selected, hasTarget );
 					var formCanConfirm = actionEligible && requiredArgsComplete && !moneyLocked && HasRequiredToggleState( pending );
-					var targetContext = pending.Dispatch == StaffDispatchKind.GiveMoney
-					                    && moneyState != StaffMoneyGrantState.Idle
-					                    && _moneyGrantTargetSteamId != 0
-						? _moneyGrantTargetName
+					var targetContext = submission is not null ? submission.TargetName
 						: pending.TargetMode == StaffActionTarget.OtherPlayer
 						? ( hasTarget ? selected.Name : "No target selected" )
 						: ( pending.TargetMode == StaffActionTarget.SelfOnly ? "Self" : "Server" );
@@ -1274,20 +1273,19 @@
 									<span class="arg-target">Current state: @( pending.Key == "xray" && !_pendingToggleState.HasValue ? "Not reported" : ToggleStateLabel( _pendingToggleState ) )</span>
 								}
 							</div>
-							<button class="icon-btn @( moneyNavigationLocked ? "control-disabled" : "" )"
-							        tooltip="@( moneyState == StaffMoneyGrantState.Pending ? "Waiting for the host result" : moneyState == StaffMoneyGrantState.Unknown ? "Waiting for an authoritative result" : "Close" )"
+							<button class="icon-btn" tooltip="@( moneyLocked ? "Dismiss grant receipt" : "Close" )"
 							        onclick="@CancelArgs"><i class="material-icons">close</i></button>
 						</div>
 
-						@if ( moneyLocked )
+						@if ( submission is not null )
 						{
 							@* Pending, Unknown and Succeeded grants show the submitted payload as a read-only receipt.
-							   Idle and Rejected retain editable inputs; unresolved grants cannot start another request. *@
+							   The submitted values survive navigation and remain independent of the current target. *@
 							<div class="grant-receipt">
-								<div class="field"><span class="k">Amount</span><span class="v grant-amount">$@_amount</span></div>
-								<div class="field"><span class="k">Destination</span><span class="v">@_destination</span></div>
+								<div class="field"><span class="k">Amount</span><span class="v grant-amount">@($"${submission.Amount:N0}")</span></div>
+								<div class="field"><span class="k">Destination</span><span class="v">@submission.Destination</span></div>
 								<div class="field"><span class="k">Target</span><span class="v">@targetContext</span></div>
-								<div class="field"><span class="k">Reason</span><span class="v grant-receipt-reason">@_reason</span></div>
+								<div class="field"><span class="k">Reason</span><span class="v grant-receipt-reason">@submission.Reason</span></div>
 							</div>
 						}
 						else
@@ -1439,10 +1437,10 @@
 								{
 									<div class="grant-confirm">
 										<span class="grant-confirm-line"><span class="grant-word-lead">Are you sure? Give</span><span class="grant-amount">$@_amount</span><span class="grant-word-mid">to</span><span class="grant-target">@targetContext</span><span class="grant-word-lead">, into their</span><span class="grant-amount">@_destination</span>?</span>
-										<span class="grant-confirm-sub">This is recorded in the host audit ring; portal delivery is asynchronous. It cannot be reversed from this console.</span>
+										<span class="grant-confirm-sub">@StaffMoneyGrantCapabilities.ConfirmationFor( _destination )</span>
 									</div>
 								}
-								else if ( moneyState == StaffMoneyGrantState.Rejected && !requiredArgsComplete )
+								else if ( moneyState == StaffMoneyGrantState.Rejected && !moneyLocked && !requiredArgsComplete )
 								{
 									<div class="arg-required-hint">Complete the required fields before confirming.</div>
 								}
@@ -1462,11 +1460,11 @@
 									<div class="arg-required-hint">Fields complete. Confirm below; the grant is restated here before it sends.</div>
 								}
 							</div>
-							@if ( moneyState == StaffMoneyGrantState.Succeeded )
+							@if ( moneyLocked )
 							{
 								@* Close the completed grant through the same guarded form-reset path as its header X. *@
 								<button class="confirm-btn grant-close-btn" tooltip="Return to Commands" onclick="@CancelArgs">
-									<i class="material-icons">close</i> Close Give Money
+									<i class="material-icons">close</i> Dismiss receipt
 								</button>
 							}
 							@if ( moneyState == StaffMoneyGrantState.Unknown )
@@ -1722,8 +1720,6 @@
 	// arm flag on target, profile or tab changes so confirmation cannot carry to another target.
 	private string _destination = "cash";
 	private bool _severeConfirm;
-	private long _moneyGrantTargetSteamId;
-	private string _moneyGrantTargetName = "";
 	private string _armedPayloadFingerprint = "";
 	private bool? _pendingToggleState;
 
@@ -1943,6 +1939,9 @@
 
 	private void SetDestination( string destination )
 	{
+		if ( (_pendingAction?.Dispatch == StaffDispatchKind.GiveMoney && StaffMenuHost.SubmittedMoneyGrant is not null)
+		     || !StaffMoneyGrantCapabilities.IsDestinationAvailable( destination ) )
+			return;
 		_destination = destination;
 		InvalidateArmedConfirm();
 		StateHasChanged();
@@ -2090,7 +2089,6 @@
 		// Drop a selection whose player left -- unless it was a manually typed Steam ID (off-roster target).
 		if ( _selectedSteamId.HasValue
 		     && _selectedSteamId != _manualSteamId
-		     && !MoneyGrantNavigationLocked()
 		     && _players.All( p => p.SteamId != _selectedSteamId.Value ) )
 		{
 			_selectedSteamId = null;
@@ -2354,11 +2352,6 @@
 	/// </summary>
 	private void Select( long steamId )
 	{
-		if ( MoneyGrantNavigationLocked() )
-		{
-			return;
-		}
-
 		ResetPocketModal();
 		ResetInventoryModal();
 
@@ -2379,11 +2372,6 @@
 	/// <summary>Preview the profile for a Steam ID typed into the search box (off-roster allowed).</summary>
 	private void SelectTypedSteamId()
 	{
-		if ( MoneyGrantNavigationLocked() )
-		{
-			return;
-		}
-
 		var text = _searchText?.Trim() ?? "";
 		if ( !IsSteamId( text ) || !long.TryParse( text, out var steamId ) )
 		{
@@ -2404,7 +2392,7 @@
 	/// </summary>
 	private void ConfirmTarget( long steamId )
 	{
-		if ( steamId == 0 || MoneyGrantNavigationLocked() )
+		if ( steamId == 0 )
 		{
 			return;
 		}
@@ -2423,7 +2411,7 @@
 	{
 		var action = StaffMenuActions.All.FirstOrDefault( x => x.Key == actionKey );
 		var target = _players.FirstOrDefault( p => p.SteamId == steamId );
-		return action is not null && !MoneyGrantNavigationLocked()
+		return action is not null
 		       && StaffMenuHost.CanView( action.PermissionId )
 		       && IsEnabled( action, target, target.SteamId != 0 )
 			? action
@@ -2455,7 +2443,7 @@
 	// A profile shortcut must commit its subject before opening the named form.
 	private void OpenProfileAction( StaffAction action, long steamId, bool enabled )
 	{
-		if ( !enabled || steamId == 0 || steamId == StaffMenuHost.LocalSteamId || MoneyGrantNavigationLocked() )
+		if ( !enabled || steamId == 0 || steamId == StaffMenuHost.LocalSteamId )
 		{
 			return;
 		}
@@ -2468,11 +2456,6 @@
 	/// <summary>Clear the active target from the banner (the "X"); drops both roster and typed selections.</summary>
 	private void Deselect()
 	{
-		if ( MoneyGrantNavigationLocked() )
-		{
-			return;
-		}
-
 		ResetPocketModal();
 		ResetInventoryModal();
 		_selectedSteamId = null;
@@ -2484,11 +2467,6 @@
 
 	private void CloseProfile()
 	{
-		if ( MoneyGrantNavigationLocked() )
-		{
-			return;
-		}
-
 		ResetPocketModal();
 		ResetInventoryModal();
 		_showProfile = false;
@@ -2504,11 +2482,6 @@
 
 	private void SelectTab( string tab )
 	{
-		if ( MoneyGrantNavigationLocked() )
-		{
-			return;
-		}
-
 		ResetPocketModal();
 		ResetInventoryModal();
 		_activeTab = tab;
@@ -2633,8 +2606,9 @@
 			return;
 		}
 
-		if ( MoneyGrantNavigationLocked() )
+		if ( action.Dispatch == StaffDispatchKind.GiveMoney && StaffMenuHost.SubmittedMoneyGrant is not null )
 		{
+			OpenMoneyGrantReceipt();
 			return;
 		}
 
@@ -2642,8 +2616,6 @@
 		     && StaffMenuHost.MoneyGrantState != StaffMoneyGrantState.Idle )
 		{
 			StaffMenuHost.ClearMoneyGrantResult();
-			_moneyGrantTargetSteamId = 0;
-			_moneyGrantTargetName = "";
 		}
 
 		_pendingAction = action;
@@ -2663,14 +2635,7 @@
 	{
 		if ( _pendingAction?.Dispatch == StaffDispatchKind.GiveMoney )
 		{
-			if ( MoneyGrantNavigationLocked() )
-			{
-				return;
-			}
-
 			StaffMenuHost.ClearMoneyGrantResult();
-			_moneyGrantTargetSteamId = 0;
-			_moneyGrantTargetName = "";
 		}
 
 		_pendingAction = null;
@@ -2721,6 +2686,7 @@
 	private void ConfirmArgs( StaffMenuPlayer selected )
 	{
 		if ( _pendingAction is not { } action ) return;
+		if ( action.Dispatch == StaffDispatchKind.GiveMoney && StaffMenuHost.SubmittedMoneyGrant is not null ) return;
 		if ( !IsEnabled( action, selected, selected.SteamId != 0 ) )
 		{
 			InvalidateArmedConfirm();
@@ -2769,14 +2735,6 @@
 				StateHasChanged();
 				return;
 			}
-		}
-
-		if ( action.Dispatch == StaffDispatchKind.GiveMoney )
-		{
-			_moneyGrantTargetSteamId = selected.SteamId;
-			_moneyGrantTargetName = string.IsNullOrWhiteSpace( selected.Name )
-				? $"SteamID {selected.SteamId}"
-				: selected.Name;
 		}
 
 		Dispatch( action, selected, args, _pendingToggleState );
@@ -2870,7 +2828,7 @@
 		{
 			StaffArgKind.Duration => IsDurationSatisfied( action, value ),
 			StaffArgKind.Number => IsNumberSatisfied( action, value ),
-			StaffArgKind.Destination => value is "cash" or "bank",
+			StaffArgKind.Destination => StaffMoneyGrantCapabilities.IsDestinationAvailable( value ),
 			_ => true
 		};
 	}
@@ -3352,11 +3310,6 @@
 	/// <summary>Return to profile from the unified sanctions view: same subject, same category tab.</summary>
 	private void ReturnToProfileFromSanctions()
 	{
-		if ( MoneyGrantNavigationLocked() )
-		{
-			return;
-		}
-
 		_activeTab = StaffMenuActions.Categories.Contains( _sanctionsReturnTab )
 			? _sanctionsReturnTab
 			: StaffMenuActions.CategoryModeration;
@@ -3376,7 +3329,7 @@
 	/// </summary>
 	private void OpenSanctionManagementFromObserve( long steamId )
 	{
-		if ( steamId == 0 || MoneyGrantNavigationLocked() )
+		if ( steamId == 0 )
 		{
 			return;
 		}
@@ -3601,11 +3554,6 @@
 
 	private void CloseMenu()
 	{
-		if ( MoneyGrantNavigationLocked() )
-		{
-			return;
-		}
-
 		StaffMenuHost.RequestClose();
 	}
 
@@ -4219,15 +4167,19 @@
 		}
 	}
 
-	private static bool MoneyGrantNavigationLocked() =>
-		StaffMenuHost.MoneyGrantState is StaffMoneyGrantState.Pending or StaffMoneyGrantState.Unknown;
-
-	private static string MoneyGrantCloseTooltip() => StaffMenuHost.MoneyGrantState switch
+	private void OpenMoneyGrantReceipt()
 	{
-		StaffMoneyGrantState.Pending => "Close unavailable while the host confirms this money grant",
-		StaffMoneyGrantState.Unknown => "Close unavailable until the original money grant has a terminal result",
-		_ => "Close Menu"
-	};
+		if ( StaffMenuHost.SubmittedMoneyGrant is null ) return;
+		_activeTab = StaffMenuActions.CategoryCommands;
+		_showProfile = false;
+		_profileSteamId = null;
+		ResetPocketModal();
+		ResetInventoryModal();
+		InvalidateArmedConfirm();
+		_pendingAction = StaffMenuActions.All.First( action => action.Dispatch == StaffDispatchKind.GiveMoney );
+		_pendingToggleState = null;
+		StateHasChanged();
+	}
 
 	/// <summary>Copy the owner-configured website link to the clipboard, with a brief "copied" confirmation.</summary>
 	private void CopyWebsite()

@@ -684,11 +684,6 @@ internal static class StaffMenuHost
 	/// <summary>Close and tear down the open menu, if any.</summary>
 	public static void RequestClose()
 	{
-		if ( MoneyGrantBlocksMenuClose )
-		{
-			return;
-		}
-
 		if ( _instance.IsValid() )
 		{
 			Close( _instance );
@@ -2422,12 +2417,8 @@ internal static class StaffMenuHost
 		}
 	}
 
-	/// <summary>
-	/// The panel owns the immutable subject/form snapshot for an in-flight money request. Keep it
-	/// mounted until the host returns a terminal result. An unknown outcome cannot be unlocked locally.
-	/// </summary>
-	public static bool MoneyGrantBlocksMenuClose =>
-		MoneyGrantState is StaffMoneyGrantState.Pending or StaffMoneyGrantState.Unknown;
+	public sealed record MoneyGrantSubmission( long TargetSteamId, string TargetName, uint Amount, string Destination, string Reason );
+	public static MoneyGrantSubmission? SubmittedMoneyGrant { get; private set; }
 	public static string MoneyGrantMessage { get; private set; } = string.Empty;
 	public static int MoneyGrantVersion { get; private set; }
 	private static System.Guid _moneyGrantRequestId;
@@ -2440,6 +2431,7 @@ internal static class StaffMenuHost
 		}
 
 		_moneyGrantRequestId = System.Guid.Empty;
+		SubmittedMoneyGrant = null;
 		MoneyGrantState = StaffMoneyGrantState.Idle;
 		MoneyGrantMessage = string.Empty;
 		MoneyGrantVersion++;
@@ -2522,7 +2514,8 @@ internal static class StaffMenuHost
 
 	internal static void OnMoneyGrantResult( System.Guid requestId, bool succeeded, string message )
 	{
-		if ( requestId == System.Guid.Empty || requestId != _moneyGrantRequestId )
+		if ( requestId == System.Guid.Empty || requestId != _moneyGrantRequestId
+		     || _moneyGrantState is StaffMoneyGrantState.Succeeded or StaffMoneyGrantState.Rejected )
 		{
 			return;
 		}
@@ -2534,7 +2527,8 @@ internal static class StaffMenuHost
 
 	internal static void OnMoneyGrantReconcileState( System.Guid requestId, bool inFlight, string message )
 	{
-		if ( requestId == System.Guid.Empty || requestId != _moneyGrantRequestId )
+		if ( requestId == System.Guid.Empty || requestId != _moneyGrantRequestId
+		     || _moneyGrantState is StaffMoneyGrantState.Succeeded or StaffMoneyGrantState.Rejected )
 		{
 			return;
 		}
@@ -2755,6 +2749,8 @@ internal static class StaffMenuHost
 
 		if ( StaffMenuBridgeService.Instance.IsValid() )
 		{
+			var targetName = GameUtils.Players.FirstOrDefault( player => player.IsValid() && player.SteamId == targetSteamId )?.DisplayName;
+			SubmittedMoneyGrant = new( targetSteamId, string.IsNullOrWhiteSpace( targetName ) ? $"SteamID {targetSteamId}" : targetName, amount, destination, reason.Trim() );
 			_moneyGrantRequestId = System.Guid.NewGuid();
 			MoneyGrantState = StaffMoneyGrantState.Pending;
 			MoneyGrantMessage = "Awaiting host confirmation…";

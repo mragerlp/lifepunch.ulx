@@ -22,6 +22,16 @@ ULX uses the receiving server's authenticated DXRP configuration. A server token
 - Editing the network website requires `lifepunchulx.settings.edit`. Configure your network's own link in the header gear. The package starts with an empty link.
 - Native command permissions and targeting still apply to actions requested from the menu.
 
+## Give Money in this source
+
+On the official DXRP parent, Give Money supports carried cash and bank deposits. The host requires an authorized server, an online target, the issuer's `economy.manage` permission, the right to target that rank, and an audit reason. The native payment runs once per accepted request.
+
+**Cash** produces a local payment confirmation. Portal audit delivery is asynchronous. **Bank** checks the player's balance with the DXRP service before sending the payment. To report success, the service and the host must both show the expected balance after payment on the same server, tenant and player connection. The bank result confirms the observed balance. DXRP does not provide a per-grant transaction receipt.
+
+After an uncertain payment, both the issuer and recipient are locked against new grants for the host session. Staff can dismiss a pending or uncertain receipt, use other commands, and reopen it from the ULX header. Its recipient, amount, destination and reason stay attached to the original request. Recheck can read the current bank balance when the original server and permissions still match. It makes no payment and cannot settle an uncertain request. Staff should use the request reference to reconcile the operation before retrying after a restart or host migration. The host caches its newest 128 completed results. The non-package build retains its strict audited adapter.
+
+These are source capabilities, not proof that an existing published revision contains them. The [money-grant suite](tests/ulx-money-grants/README.md) uses isolated native-boundary fixtures and changes no player funds. Live behavior and audit delivery require separate QA evidence.
+
 ## Verify a revision
 
 On a staging server, use two clients to check the expected allow and deny results for Ranks, the selected player's X-ray flag, the Appearance color square, hue strip and hex field, and Observe. Reopen the menu and reconnect a regular client to catch missing assets or stale package pins.

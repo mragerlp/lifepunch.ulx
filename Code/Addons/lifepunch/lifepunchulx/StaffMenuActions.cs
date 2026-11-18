@@ -216,11 +216,11 @@ public static class StaffMenuActions
 			StaffDispatchKind.GiveMoney, "givemoney", StaffActionTarget.OtherPlayer, StaffActionSeverity.Severe,
 			new[]
 			{
-				new StaffActionArg( "destination", "Destination", StaffArgKind.Destination, true, "Cash or bank" ),
+				new StaffActionArg( "destination", "Destination", StaffArgKind.Destination, true, StaffMoneyGrantCapabilities.DestinationHint ),
 				new StaffActionArg( "amount", "Amount", StaffArgKind.Number, true, "e.g. 5000" ),
 				new StaffActionArg( "reason", "Reason", StaffArgKind.Text, true, "Refund for lost printer, event payout..." )
 			},
-			"payments", "Grant currency to this player (audited)", StaffActionDisplayTone.Money ),
+			"payments", StaffMoneyGrantCapabilities.ActionDescription, StaffActionDisplayTone.Money ),
 
 		new( "forcerpname", "Force RP Name", CategoryCommands, "command.forcerpname",
 			StaffDispatchKind.ChatCommand, "forcerpname", StaffActionTarget.OtherPlayer, StaffActionSeverity.Medium,
