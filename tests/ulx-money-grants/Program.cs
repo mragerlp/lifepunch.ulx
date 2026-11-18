@@ -13,6 +13,11 @@ void Check(bool condition, string message)
 {
     Networking.IsHost = true;
     GameManager.HasAuthorizationKey = true;
+    GameManager.TestScope = "manager|tenant|server|endpoint";
+    Config.Current.IsReady = true;
+    ServerApiClient.Reads.Clear(); ServerApiClient.RemoteBalance = 200;
+    ServerApiClient.Read = _ => Task.FromResult<Dxura.RP.Shared.InitalizePlayerResponseDto?>(new() { Balance = ServerApiClient.RemoteBalance });
+    Player.ApplyToLocal = Player.ApplyToRemote = true;
     Config.Current.Game.MoneyEnabled = true;
     RankSystem.Allowed = RankSystem.Targetable = true;
     StaffMenuHost.Synthetic.Clear();
@@ -55,7 +60,7 @@ bridge.QueryMoneyGrantResultHost(request);
 Check(Player.Calls == 1, "Query-only reconciliation paid again");
 Check(typeof(StaffMenuBridgeService).GetMethod("GiveMoneyHost")!.IsDefined(typeof(Rpc.HostAttribute)), "Grant lost host RPC boundary");
 Check(typeof(StaffMenuBridgeService).GetMethod("QueryMoneyGrantResultHost")!.IsDefined(typeof(Rpc.HostAttribute)), "Query lost host RPC boundary");
-Check(StaffMoneyGrantCapabilities.IsDestinationAvailable("cash") && !StaffMoneyGrantCapabilities.IsDestinationAvailable("bank")
+Check(StaffMoneyGrantCapabilities.IsDestinationAvailable("cash") && StaffMoneyGrantCapabilities.IsDestinationAvailable("bank")
       && !StaffMoneyGrantCapabilities.IsDestinationAvailable("other"), "Package destination UI exposes an unavailable grant");
 Check(StaffMoneyGrantCapabilities.ConfirmationNotice.Contains("unconfirmed")
       && !StaffMoneyGrantCapabilities.ConfirmationNotice.Contains("host audit ring"), "Package confirmation claims an unverified audit guarantee");
@@ -110,10 +115,94 @@ Rejected((_, _, t) => Connection.All.Remove(t.Connection!));
 Rejected((_, _, t) => t.Connection!.SteamId++);
 Rejected((_, _, _) => RankSystem.Targetable = false);
 Rejected((_, _, t) => StaffMenuHost.Synthetic.Add(t.SteamId));
-Rejected((_, _, _) => { }, bank: true);
 var bankCase = Fixture();
-bankCase.Bridge.GiveMoneyHost(Guid.NewGuid(), bankCase.Target.SteamId, 50, true, "Refund");
-Check(bankCase.Bridge.Results.Single().Message.Contains("Bank grants are unavailable"), "Bank rejection should explain native outcome limitation");
+var bankRequest = Guid.NewGuid();
+bankCase.Bridge.GiveMoneyHost(bankRequest, bankCase.Target.SteamId, 50, true, "Refund");
+await Finish(bankCase.Bridge);
+Check(Player.Calls == 1 && Player.Payments.Single().Bank && Player.Payments.Single().Reason.Contains(bankRequest.ToString("N")), "Bank payment must carry its request reference and run once");
+Check(ServerApiClient.Reads.SequenceEqual(new long[] { 202, 202 }) && bankCase.Target.BankBalance == 250 && ServerApiClient.RemoteBalance == 250, "Read authoritative before/after balances from the correct account");
+Check(bankCase.Bridge.Results.Single().State == "Succeeded" && bankCase.Bridge.Results.Single().Message.Contains("250")
+      && bankCase.Bridge.Results.Single().Message.Contains("receipt", StringComparison.OrdinalIgnoreCase), "Successful bank result must report the verified balance and receipt limitation");
+bankCase.Bridge.QueryMoneyGrantResultHost(bankRequest);
+bankCase.Bridge.GiveMoneyHost(bankRequest, 202, 50, true, "Replay");
+Check(Player.Calls == 1 && ServerApiClient.Reads.Count == 2 && bankCase.Bridge.Unresolved == 0, "Positive receipt and replay cannot pay twice");
+
+Check(StaffMoneyGrantCapabilities.ConfirmationFor("bank").Contains("before and after")
+      && StaffMoneyGrantCapabilities.ConfirmationFor("bank").Contains("does not issue a transaction receipt")
+      && StaffMoneyGrantCapabilities.ConfirmationFor("cash") == StaffMoneyGrantCapabilities.ConfirmationNotice,
+      "Each destination needs its own accurate confirmation");
+var selfGrant = Fixture();
+selfGrant.Bridge.GiveMoneyHost(Guid.NewGuid(), selfGrant.Caller.SteamId, 50, true, "Owner self-grant");
+await Finish(selfGrant.Bridge);
+Check(Player.Calls == 1 && Player.Payments.Single().Target == selfGrant.Caller.SteamId
+      && ServerApiClient.Reads.SequenceEqual(new[] { selfGrant.Caller.SteamId, selfGrant.Caller.SteamId })
+      && selfGrant.Bridge.Results.Single().State == "Succeeded", "Self-grant must verify the issuer's own account");
+
+foreach (var invalid in new[] { "scope-missing", "config-unready", "read-failure", "null", "different", "overflow", "permission-changed", "hierarchy-changed", "scope-changed", "issuer-left", "target-left", "money-disabled", "target-mirror-changed" })
+{
+    var x = Fixture();
+    if (invalid == "scope-missing") GameManager.TestScope = null;
+    if (invalid == "config-unready") Config.Current.IsReady = false;
+    if (invalid == "overflow") x.Target.TestBank = ServerApiClient.RemoteBalance = uint.MaxValue - 3;
+    ServerApiClient.Read = _ => {
+        if (invalid == "read-failure") throw new Exception("fixture preflight network failure");
+        if (invalid == "permission-changed") RankSystem.Allowed = false;
+        if (invalid == "hierarchy-changed") RankSystem.Targetable = false;
+        if (invalid == "scope-changed") GameManager.TestScope = "other";
+        if (invalid == "issuer-left") x.Caller.IsActive = false;
+        if (invalid == "target-left") x.Target.Connection!.IsActive = false;
+        if (invalid == "money-disabled") Config.Current.Game.MoneyEnabled = false;
+        if (invalid == "target-mirror-changed") x.Target.TestBank++;
+        return Task.FromResult<Dxura.RP.Shared.InitalizePlayerResponseDto?>(invalid == "null" ? null : new() { Balance = ServerApiClient.RemoteBalance + (invalid == "different" ? 1u : 0u) });
+    };
+    x.Bridge.GiveMoneyHost(Guid.NewGuid(), 202, 50, true, "Refund");
+    await Finish(x.Bridge);
+    Check(Player.Calls == 0 && x.Bridge.Unresolved == 0 && !x.Bridge.Results.Any(r => r.State == "Succeeded"), "Rejected bank preflight changed money or retained a lock: " + invalid);
+}
+foreach (var issue in new[] { "service-delta", "local-delta", "native-false", "native-throws", "scope-lost", "post-read-fails", "post-null", "target-replaced" })
+{
+    var x = Fixture(); var original = Guid.NewGuid();
+    Player.ApplyToRemote = issue != "service-delta"; Player.ApplyToLocal = issue != "local-delta";
+    Player.Outcome = () => issue == "native-throws" ? throw new Exception("fixture lost acknowledgement") : Task.FromResult(issue != "native-false");
+    ServerApiClient.Read = _ => {
+        if (ServerApiClient.Reads.Count == 2) {
+            if (issue == "scope-lost") GameManager.TestScope = "different";
+            if (issue == "post-read-fails") throw new Exception("fixture after-read failure");
+            if (issue == "post-null") return Task.FromResult<Dxura.RP.Shared.InitalizePlayerResponseDto?>(null);
+            if (issue == "target-replaced") x.Target.Connection = new Connection(202);
+        }
+        return Task.FromResult<Dxura.RP.Shared.InitalizePlayerResponseDto?>(new() { Balance = ServerApiClient.RemoteBalance });
+    };
+    x.Bridge.GiveMoneyHost(original, 202, 50, true, "Uncertain grant"); await Finish(x.Bridge);
+    Check(Player.Calls == 1 && x.Bridge.Results.Last().State == "Unknown" && x.Bridge.Unresolved == 1, "Uncertain bank operation must lock and remain UNKNOWN: " + issue);
+    if (issue is not ("target-replaced" or "scope-lost")) {
+        ServerApiClient.RemoteBalance = 250; // An unrelated credit could match the requested amount.
+        ServerApiClient.Read = _ => Task.FromResult<Dxura.RP.Shared.InitalizePlayerResponseDto?>(new() { Balance = 250 });
+        var reads = ServerApiClient.Reads.Count;
+        x.Bridge.QueryMoneyGrantResultHost(original);
+        Check(ServerApiClient.Reads.Count == reads + 1 && x.Bridge.Results.Last().State == "Unknown"
+              && x.Bridge.Results.Last().Message.Contains("250"), "Authorized recheck reads current balance and cannot confirm attribution: " + issue);
+    }
+    var other = new Connection(303); Connection.All.Add(other); GameUtils.Players.Add(new Player(303, other)); Rpc.Caller = other;
+    x.Bridge.GiveMoneyHost(Guid.NewGuid(), 202, 50, false, "Another issuer");
+    Check(Player.Calls == 1, "A second issuer used an unresolved target: " + issue);
+    Rpc.Caller = x.Caller; x.Bridge.GiveMoneyHost(original, 202, 50, true, "Replay");
+    x.Bridge.GiveMoneyHost(Guid.NewGuid(), 303, 50, true, "Second target");
+    Check(Player.Calls == 1 && x.Bridge.Unresolved == 1, "Unknown bank grant repeated or released its lock: " + issue);
+}
+
+var busy = Fixture(); var gated = new TaskCompletionSource<Dxura.RP.Shared.InitalizePlayerResponseDto?>();
+ServerApiClient.Read = _ => gated.Task;
+var busyRequest = Guid.NewGuid(); busy.Bridge.GiveMoneyHost(busyRequest, 202, 50, true, "Pending preflight");
+var staff2 = new Connection(303); Connection.All.Add(staff2); GameUtils.Players.Add(new Player(303, staff2));
+Rpc.Caller = staff2; busy.Bridge.GiveMoneyHost(Guid.NewGuid(), 202, 50, false, "Other staff");
+Check(Player.Calls == 0 && ServerApiClient.Reads.Count == 1, "Pending preflight must own the target lock");
+Rpc.Caller = busy.Caller; busy.Bridge.GiveMoneyHost(busyRequest, 202, 50, true, "Replay");busy.Bridge.QueryMoneyGrantResultHost(busyRequest);
+Check(ServerApiClient.Reads.Count == 1 && busy.Bridge.Results.Last().State == "Pending", "Recheck or replay repeated pending preflight");
+ServerApiClient.Read = _ => Task.FromResult<Dxura.RP.Shared.InitalizePlayerResponseDto?>(new() { Balance = ServerApiClient.RemoteBalance });
+gated.SetResult(new() { Balance = 200 }); await Finish(busy.Bridge);
+Rpc.Caller = staff2; busy.Bridge.GiveMoneyHost(Guid.NewGuid(), 202, 20, false, "After verified bank");
+Check(Player.Calls == 2 && busy.Bridge.Unresolved == 0, "Verified bank grant should free both locks");
 
 foreach (var failure in new[] { "false", "exception", "lost-link", "money-disabled", "target-left", "target-invalid", "connection-replaced", "host-lost" })
 {
@@ -147,4 +236,4 @@ foreach (var failure in new[] { "false", "exception", "lost-link", "money-disabl
     pending.Bridge.GiveMoneyHost(id, pending.Target.SteamId, 50, false, "Evicted original replay");
     Check(Player.Calls == 1 && pending.Bridge.Results.Last().State == "Unknown", "Receipt eviction lost unresolved lock");
 }
-Console.WriteLine($"PASS: {checks} package cash-grant assertions; actual host RPC, native call count, caller/rank/input guards, bank rejection, replay and unknown-outcome lock retention.");
+Console.WriteLine($"PASS: {checks} native money-grant assertions covering cash, authenticated bank balance checks, caller and target locks, and read-only reconciliation.");

@@ -32,16 +32,34 @@ namespace Sandbox
 
 namespace Dxura.RP.Shared
 {
+    internal sealed class InitalizePlayerDto { public long Id { get; set; } public string Name { get; set; } = ""; }
+    internal sealed class InitalizePlayerResponseDto { public uint Balance { get; set; } }
     internal static class Permission { public const string ManageEconomy = "economy.manage"; }
 }
 
 namespace Dxura.RP.Game
 {
-    internal sealed class GameManager { public static bool HasAuthorizationKey = true; }
+    internal sealed class GameManager { public static bool HasAuthorizationKey = true; public static string? TestScope;
+        public static GameManager Instance = new();
+        public Guid Id = Guid.NewGuid(), ServerId = Guid.NewGuid();
+        public string? TenantId => TestScope;
+        public bool IsValid() => true; }
+    internal static class ServerApiClient
+    {
+        public static uint RemoteBalance;
+        public static Func<Dxura.RP.Shared.InitalizePlayerDto, Task<Dxura.RP.Shared.InitalizePlayerResponseDto?>> Read = null!;
+        public static List<long> Reads = [];
+        public static Task<Dxura.RP.Shared.InitalizePlayerResponseDto?> InitializePlayer(Dxura.RP.Shared.InitalizePlayerDto dto)
+        {
+            Reads.Add(dto.Id);
+            return Read(dto);
+        }
+    }
     internal sealed class Config
     {
         public static Config Current = new();
         public GameSettings Game = new();
+        public bool IsReady = true;
     }
     internal sealed class GameSettings { public bool MoneyEnabled = true; }
     internal static class RankSystem
@@ -65,12 +83,18 @@ namespace Dxura.RP.Game
         public static Func<Task<bool>> Outcome = () => Task.FromResult(true);
         // Read-only fixture balances make accidental addon-side balance assignments a compile failure.
         public uint WalletBalance => 100;
-        public uint BankBalance => 200;
-        public Task<bool> PayHost(uint amount, string reason, bool inBank = false)
+        public string DisplayName => Connection?.DisplayName ?? "";
+        public uint TestBank = 200;
+        public uint BankBalance => TestBank;
+        public static bool ApplyToLocal, ApplyToRemote;
+        public async Task<bool> PayHost(uint amount, string reason, bool inBank = false)
         {
             Calls++;
             Payments.Add((SteamId, amount, reason, inBank));
-            return Outcome();
+            var outcome = await Outcome();
+            if (inBank && ApplyToLocal && outcome) TestBank += amount;
+            if (inBank && ApplyToRemote && outcome) ServerApiClient.RemoteBalance += amount;
+            return outcome;
         }
     }
 }

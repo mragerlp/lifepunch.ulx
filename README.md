@@ -24,9 +24,11 @@ ULX uses the receiving server's authenticated DXRP configuration. A server token
 
 ## Give Money in this source
 
-The `LIFEPUNCH_PACKAGE` build supports **Cash only** through the official parent's `Player.PayHost` method. The host checks the current caller and target connections, `economy.manage`, rank targeting, an authorized server link, enabled money, a positive bounded amount, and a nonblank reason before calling the native payment method once. Bank grants remain disabled because this parent does not provide a reliable bank payment outcome.
+On the official DXRP parent, Give Money supports carried cash and bank deposits. The host requires an authorized server, an online target, the issuer's `economy.manage` permission, the right to target that rank, and an audit reason. The native payment runs once per accepted request.
 
-A successful receipt means **cash was applied locally; audit delivery is unconfirmed**. A false result, exception, or lost server link leaves the request UNKNOWN and blocks further grants from that caller. Recheck reads the receipt without repeating the payment. The newest 128 result receipts are cached; unresolved caller locks remain for the current host lifetime. Old successful request IDs are not durable idempotency keys; reconcile an uncertain grant with the server operator before retrying after a restart or host migration. The non-package build retains its strict audited adapter.
+**Cash** produces a local payment confirmation. Portal audit delivery is asynchronous. **Bank** checks the player's balance with the DXRP service before sending the payment. To report success, the service and the host must both show the expected balance after payment on the same server, tenant and player connection. The bank result confirms the observed balance. DXRP does not provide a per-grant transaction receipt.
+
+After an uncertain payment, both the issuer and recipient are locked against new grants for the host session. Recheck can read the current bank balance when the original server and permissions still match. It makes no payment and cannot settle an uncertain request. Staff should use the request reference to reconcile the operation before retrying after a restart or host migration. The host caches its newest 128 completed results. The non-package build retains its strict audited adapter.
 
 These are source capabilities, not proof that an existing published revision contains them. The [money-grant suite](tests/ulx-money-grants/README.md) uses isolated native-boundary fixtures and changes no player funds. Live behavior and audit delivery require separate QA evidence.
 

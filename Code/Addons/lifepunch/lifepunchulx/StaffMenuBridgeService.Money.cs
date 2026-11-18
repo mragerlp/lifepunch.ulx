@@ -30,10 +30,25 @@ public sealed partial class StaffMenuBridgeService
 	private readonly Dictionary<string, (MoneyGrantHostState State, string Message)> _moneyGrantResults = new( StringComparer.Ordinal );
 	private readonly Queue<string> _moneyGrantResultOrder = new();
 
+#if LIFEPUNCH_PACKAGE
+	private readonly HashSet<long> _moneyGrantLockedTargets = new();
+	private readonly Dictionary<long, BankGrant> _pendingBankGrants = new();
+
+	private sealed class BankGrant
+	{
+		public Guid RequestId;
+		public long TargetId;
+		public Guid ManagerId, ServerId;
+		public string TenantId = string.Empty;
+		public bool Rechecking;
+		public DateTime NextCheck;
+	}
+#endif
+
 	/// <summary>
 	/// Validate and execute a staff currency grant on the host. Invalid grants are rejected,
 	/// not clamped; the amount must fit the signed API boundary despite the uint request field.
-	/// Package cash uses native PayHost once; the legacy build retains its strict audited adapter.
+	/// Package grants use PayHost once. Bank deposits also require matching DXRP balance reads.
 	/// No balance field is written directly. An unknown outcome retains the caller's host-lifetime lock.
 	/// </summary>
 	[Rpc.Host]
@@ -140,10 +155,10 @@ public sealed partial class StaffMenuBridgeService
 		}
 
 #if LIFEPUNCH_PACKAGE
-		if ( inBank )
+		if ( !_moneyGrantLockedTargets.Add( targetSteamId ) )
 		{
 			CompleteMoneyGrant( caller, requestId, replayKey, false,
-				StaffMoneyGrantCapabilities.BankUnavailableMessage );
+				"Another grant for this player is pending or needs reconciliation." );
 			return;
 		}
 #endif
@@ -153,7 +168,10 @@ public sealed partial class StaffMenuBridgeService
 		_moneyGrantUnresolvedByCaller[caller.SteamId] = requestId;
 		_moneyGrantInFlight.Add( replayKey );
 #if LIFEPUNCH_PACKAGE
-		_ = ExecuteNativeCashGrantAsync( caller, requestId, replayKey, target, amount, audited );
+		if ( inBank )
+			_ = ExecuteNativeBankGrantAsync( caller, requestId, replayKey, target, amount, audited );
+		else
+			_ = ExecuteNativeCashGrantAsync( caller, requestId, replayKey, target, amount, audited );
 #else
 		_ = ExecuteGiveMoneyAsync( caller, requestId, replayKey, target, amount, inBank, audited, caller.SteamId );
 #endif
@@ -192,9 +210,133 @@ public sealed partial class StaffMenuBridgeService
 
 		if ( _moneyGrantUnresolvedByCaller.TryGetValue( caller.SteamId, out var unresolvedRequestId ) && unresolvedRequestId == requestId )
 			_moneyGrantUnresolvedByCaller.Remove( caller.SteamId );
+		_moneyGrantLockedTargets.Remove( target.SteamId );
 		CompleteMoneyGrant( caller, requestId, replayKey, true,
 			StaffMoneyGrantCapabilities.CashAppliedMessage );
 	}
+	private static bool CanVerifyBankGrant( BankGrant grant, Connection caller, Player target, Connection? targetConnection )
+	{
+		var manager = GameManager.Instance;
+		if ( targetConnection is null || !IsMoneyGrantConnection( caller ) || !IsMoneyGrantConnection( targetConnection ) ||
+		     !GameManager.HasAuthorizationKey || Config.Current?.IsReady != true || !Config.Current.Game.MoneyEnabled ||
+		     !manager.IsValid() || manager.Id != grant.ManagerId || manager.ServerId != grant.ServerId ||
+		     manager.TenantId != grant.TenantId || !target.IsValid() || target.SteamId != grant.TargetId ||
+		     !ReferenceEquals( target.Connection, targetConnection ) || targetConnection.SteamId != grant.TargetId )
+			return false;
+
+		var issuer = GameUtils.GetPlayerByConnectionId( caller.Id );
+		return issuer is not null && issuer.IsValid() && issuer.SteamId == caller.SteamId && ReferenceEquals( issuer.Connection, caller )
+			&& ReferenceEquals( GameUtils.GetPlayerByConnectionId( targetConnection.Id ), target )
+			&& !StaffMenuHost.IsSyntheticPlayer( caller.SteamId ) && !StaffMenuHost.IsSyntheticPlayer( grant.TargetId )
+			&& RankSystem.HasPermission( caller.SteamId, Permission.ManageEconomy ) && RankSystem.CanTarget( caller.SteamId, grant.TargetId );
+	}
+
+	private static Task<InitalizePlayerResponseDto?> ReadServiceBankAsync( Player target )
+		=> ServerApiClient.InitializePlayer( new InitalizePlayerDto { Id = target.SteamId, Name = target.DisplayName } );
+
+	private async Task<uint?> ApplyAndVerifyBankAsync( BankGrant grant, Connection caller, Player target, uint amount, string reason )
+	{
+		var manager = GameManager.Instance;
+		if ( !manager.IsValid() || manager.ServerId == Guid.Empty || string.IsNullOrWhiteSpace( manager.TenantId ) )
+			return null;
+
+		grant.ManagerId = manager.Id;
+		grant.ServerId = manager.ServerId;
+		grant.TenantId = manager.TenantId;
+		var connection = target.Connection;
+		if ( !CanVerifyBankGrant( grant, caller, target, connection ) )
+			return null;
+
+		var before = await ReadServiceBankAsync( target );
+		await GameTask.MainThread();
+		if ( before is null || !CanVerifyBankGrant( grant, caller, target, connection ) ||
+		     target.BankBalance != before.Balance || uint.MaxValue - before.Balance < amount )
+			return null;
+
+		var expected = before.Balance + amount;
+		// From here on, a lost response leaves both locks in place. Only read-back is safe.
+		_pendingBankGrants[caller.SteamId] = grant;
+		var applied = await target.PayHost( amount, $"{reason} [ULX {grant.RequestId:N}]", true );
+		await GameTask.MainThread();
+		if ( !applied || !CanVerifyBankGrant( grant, caller, target, connection ) )
+			return null;
+
+		var after = await ReadServiceBankAsync( target );
+		await GameTask.MainThread();
+		if ( after?.Balance != expected || !CanVerifyBankGrant( grant, caller, target, connection ) || target.BankBalance != expected )
+			return null;
+
+		return expected;
+	}
+
+	private async Task ExecuteNativeBankGrantAsync(
+		Connection caller, Guid requestId, string replayKey, Player target, uint amount, string auditedReason )
+	{
+		var grant = new BankGrant { RequestId = requestId, TargetId = target.SteamId };
+		uint? verifiedBalance = null;
+		try
+		{
+			verifiedBalance = await ApplyAndVerifyBankAsync( grant, caller, target, amount, auditedReason );
+		}
+		catch ( Exception e )
+		{
+			Log.Warning( $"[lifepunchulx] bank balance check interrupted ({e.GetType().Name})." );
+		}
+
+		await GameTask.MainThread();
+		_moneyGrantInFlight.Remove( replayKey );
+		if ( !verifiedBalance.HasValue && _pendingBankGrants.ContainsKey( caller.SteamId ) )
+		{
+			CompleteMoneyGrantUnknown( caller, requestId, replayKey,
+				"Bank payment outcome unknown. Further grants are locked for the issuer and recipient. Recheck the balance before contacting the server operator." );
+			return;
+		}
+
+		_moneyGrantUnresolvedByCaller.Remove( caller.SteamId );
+		_moneyGrantLockedTargets.Remove( grant.TargetId );
+		_pendingBankGrants.Remove( caller.SteamId );
+		CompleteMoneyGrant( caller, requestId, replayKey, verifiedBalance.HasValue, verifiedBalance.HasValue
+			? $"DXRP verified the player's bank balance is ${verifiedBalance.Value:N0}. No transaction receipt is available."
+			: "Bank grant was not sent. Check the server link, player, permissions, and available bank capacity, then refresh the balance." );
+	}
+
+	private bool TryRecheckBankGrant( Connection caller, Guid requestId )
+	{
+		if ( !_pendingBankGrants.TryGetValue( caller.SteamId, out var grant ) || grant.RequestId != requestId ||
+		     _moneyGrantInFlight.Contains( MoneyGrantReplayKey( caller, requestId ) ) )
+			return false;
+
+		var target = GameUtils.Players.FirstOrDefault( p => p.IsValid() && p.SteamId == grant.TargetId );
+		if ( target is null || !CanVerifyBankGrant( grant, caller, target, target.Connection ) ||
+		     grant.Rechecking || DateTime.UtcNow < grant.NextCheck )
+			return false;
+
+		grant.Rechecking = true;
+		grant.NextCheck = DateTime.UtcNow.AddSeconds( 2 );
+		_ = ReadUnresolvedBankGrantAsync( caller, grant, target );
+		return true;
+	}
+
+	private async Task ReadUnresolvedBankGrantAsync( Connection caller, BankGrant grant, Player target )
+	{
+		var targetConnection = target.Connection;
+		InitalizePlayerResponseDto? snapshot = null;
+		try
+		{
+			snapshot = await ReadServiceBankAsync( target );
+		}
+		catch ( Exception e )
+		{
+			Log.Warning( $"[lifepunchulx] bank recheck interrupted ({e.GetType().Name})." );
+		}
+		await GameTask.MainThread();
+		grant.Rechecking = false;
+		var message = snapshot is not null && CanVerifyBankGrant( grant, caller, target, targetConnection )
+			? $"DXRP reports a bank balance of ${snapshot.Balance:N0}. The original grant is still unresolved. Compare the Portal records with reference {grant.RequestId:N}."
+			: "The bank balance could not be verified. The original grant remains unresolved.";
+		SendMoneyGrantReconcileState( caller, grant.RequestId, false, message );
+	}
+
 #else
 	private async Task ExecuteGiveMoneyAsync(
 		Connection caller,
@@ -315,6 +457,10 @@ public sealed partial class StaffMenuBridgeService
 		if ( callerPlayer is null || !callerPlayer.IsValid() || !ReferenceEquals( callerPlayer.Connection, caller ) || callerPlayer.SteamId != caller.SteamId )
 			return;
 
+#if LIFEPUNCH_PACKAGE
+		if ( TryRecheckBankGrant( caller, requestId ) )
+			return;
+#endif
 		var replayKey = MoneyGrantReplayKey( caller, requestId );
 		if ( _moneyGrantResults.TryGetValue( replayKey, out var prior ) )
 		{

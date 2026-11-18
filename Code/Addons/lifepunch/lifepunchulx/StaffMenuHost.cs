@@ -2753,15 +2753,6 @@ internal static class StaffMenuHost
 			return;
 		}
 
-		if ( !StaffMoneyGrantCapabilities.IsDestinationAvailable( destination ) )
-		{
-			_moneyGrantRequestId = System.Guid.Empty;
-			MoneyGrantState = StaffMoneyGrantState.Rejected;
-			MoneyGrantMessage = StaffMoneyGrantCapabilities.BankUnavailableMessage;
-			MoneyGrantVersion++;
-			return;
-		}
-
 		if ( StaffMenuBridgeService.Instance.IsValid() )
 		{
 			_moneyGrantRequestId = System.Guid.NewGuid();

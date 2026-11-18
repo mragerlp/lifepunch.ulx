@@ -1,4 +1,4 @@
-# Native cash-grant checks
+# Native money-grant checks
 
 Run from the repository root:
 
@@ -7,8 +7,6 @@ $env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH = 'false'
 dotnet run --project tests/ulx-money-grants/MoneyGrant.Tests.csproj --configuration Release
 ```
 
-The suite compiles the actual money RPC partial and presentation capabilities with `LIFEPUNCH_PACKAGE`. Only engine, transport, rank lookup and the native `Player.PayHost` boundary are replaced with local fixtures. Fixture balances are read-only, so an add-on-side balance assignment cannot compile. No server or player funds are touched.
+The suite compiles the actual money RPC and presentation capabilities with `LIFEPUNCH_PACKAGE`. It replaces engine, transport, rank, bank read-back and payment boundaries with local fixtures. The player balance properties are read-only to the addon.
 
-It checks current host/caller/target identity, permission and rank checks, amount/reason validation, Cash-only availability, exactly one native call, recipient-scoped receipts, read-only reconciliation, replay handling, and retained caller locks after false/exception/disconnect/lost-link outcomes. Receipt eviction cannot release an unresolved caller lock. Only the newest 128 result receipts are cached: explicitly resubmitting an older successful ID can pay again, so the UI never resubmits a completed or uncertain grant.
-
-A native `true` result proves local cash application only; audit delivery remains unconfirmed. Bank grants stay unavailable in the package build. The non-package strict adapter remains a separate integration path. These fixtures do not prove live audit delivery, menu rendering, reconnect behavior, or host migration. Receipt caches and unresolved locks last only for the current host lifetime; an unresolved grant must be reconciled operationally before any retry after a server restart.
+Checks cover carried cash, bank deposits with matching local and service balances, preflight rejection before dispatch, caller and target locks, query-only reconciliation, interrupted payments and replay. The bank fixture can change service and host balances independently to detect a local-only credit. A later matching balance leaves an uncertain payment unresolved. The live service, Portal audit and host restart are outside this suite.

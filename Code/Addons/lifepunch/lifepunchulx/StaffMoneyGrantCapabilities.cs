@@ -15,9 +15,9 @@ namespace LifePunch.DXRP.Addons.StaffMenu;
 public static class StaffMoneyGrantCapabilities
 {
 #if LIFEPUNCH_PACKAGE
-	public static bool BankAvailable => false;
-	public static string DestinationHint => "Cash";
-	public static string ActionDescription => "Grant cash to this player; audit delivery is unconfirmed";
+	public static bool BankAvailable => true;
+	public static string DestinationHint => "Cash or bank";
+	public static string ActionDescription => "Grant carried cash or verify a bank deposit against the DXRP balance";
 	public static string ConfirmationNotice => "Cash is applied locally and an audit is queued. Audit delivery is unconfirmed. This cannot be reversed from this console.";
 #else
 	public static bool BankAvailable => true;
@@ -25,7 +25,14 @@ public static class StaffMoneyGrantCapabilities
 	public static string ActionDescription => "Grant currency to this player (audited)";
 	public static string ConfirmationNotice => "This is recorded in the host audit ring; portal delivery is asynchronous. It cannot be reversed from this console.";
 #endif
-	public const string BankUnavailableMessage = "Bank grants are unavailable: the current parent cannot confirm whether a bank payment was applied. Cash grants remain available.";
+	public static string ConfirmationFor( string destination )
+	{
+#if LIFEPUNCH_PACKAGE
+		if ( destination == "bank" )
+			return "DXRP will check the player's bank balance before and after payment. The service does not issue a transaction receipt.";
+#endif
+		return ConfirmationNotice;
+	}
 	public const string CashAppliedMessage = "Cash grant applied locally; audit delivery is unconfirmed. Check the Portal audit separately.";
 	public static bool IsDestinationAvailable( string destination ) => destination == "cash" || (destination == "bank" && BankAvailable);
 }

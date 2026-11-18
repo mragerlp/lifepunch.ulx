@@ -6,7 +6,7 @@ This repository owns the standalone `lifepunch.ulx` add-on for the official `dxu
 
 - `ulx.sbproj` defines `SANDBOX;ADDON;LIFEPUNCH_PACKAGE`. Verify the installed parent assembly and record its SHA-256 before relying on an API. A local compatibility shim is not evidence that the published parent exposes that API.
 - Keep authoritative permission, rank, connection, amount and replay checks on the host. Menu visibility and displayed rank names do not authorize an action.
-- Package money grants use native `Player.PayHost` exactly once for Cash. Do not assign player balances directly. Bank is unavailable; native cash success does not confirm audit delivery. UNKNOWN results keep the caller lock and cannot be retried automatically. Receipts and locks last for the host lifetime only.
+- Package money grants call native `Player.PayHost` once. Cash reports local application. Bank requires matching server-authenticated and host balances before and after payment. Never assign balances directly. UNKNOWN results keep both issuer and recipient locks. Recheck may read the bank balance, but must never resubmit a payment or claim a transaction receipt. Receipts and locks last for the host lifetime only.
 - Preserve the non-package strict adapter unless its behavior is explicitly part of the task. Keep secrets out of source, logs and test output.
 
 ## Checks and source custody

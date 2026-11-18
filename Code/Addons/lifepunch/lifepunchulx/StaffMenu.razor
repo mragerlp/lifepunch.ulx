@@ -1333,14 +1333,9 @@
 									<div class="chips">
 										<button class="chip @( _destination == "cash" ? "chip-active" : "" )"
 										        onclick="@(() => SetDestination( "cash" ))">Cash</button>
-										<button class="chip @( _destination == "bank" ? "chip-active" : "" ) @( StaffMoneyGrantCapabilities.BankAvailable ? "" : "control-disabled" )"
-										        disabled="@(!StaffMoneyGrantCapabilities.BankAvailable)"
+										<button class="chip @( _destination == "bank" ? "chip-active" : "" )"
 										        onclick="@(() => SetDestination( "bank" ))">Bank</button>
 									</div>
-									@if ( !StaffMoneyGrantCapabilities.BankAvailable )
-									{
-										<span class="grant-confirm-sub">@StaffMoneyGrantCapabilities.BankUnavailableMessage</span>
-									}
 								}
 								else if ( arg.Kind == StaffArgKind.Number )
 								{
@@ -1444,7 +1439,7 @@
 								{
 									<div class="grant-confirm">
 										<span class="grant-confirm-line"><span class="grant-word-lead">Are you sure? Give</span><span class="grant-amount">$@_amount</span><span class="grant-word-mid">to</span><span class="grant-target">@targetContext</span><span class="grant-word-lead">, into their</span><span class="grant-amount">@_destination</span>?</span>
-										<span class="grant-confirm-sub">@StaffMoneyGrantCapabilities.ConfirmationNotice</span>
+										<span class="grant-confirm-sub">@StaffMoneyGrantCapabilities.ConfirmationFor( _destination )</span>
 									</div>
 								}
 								else if ( moneyState == StaffMoneyGrantState.Rejected && !requiredArgsComplete )
